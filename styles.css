@@ -1,0 +1,153 @@
+
+:root { --bg:#fafafa; --card:#fff; --text:#111; --muted:#444; --line:#eee; --accent:#0ea5e9; }
+.dark { --bg:#0b1220; --card:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --line:#1f2937; --accent:#38bdf8; }
+body.window { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+.bar { display:flex; align-items:center; gap:.5rem; padding:.5rem .75rem; position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--line); }
+.bar h1 { font-size: 1rem; margin: 0; }
+.fileLabel { border:1px solid #dadada; padding:.45rem .7rem; border-radius:.5rem; background:var(--card); cursor:pointer; }
+.fileLabel:hover { background:#f3f4f6; }
+#search { padding:.45rem .6rem; border:1px solid #ccc; border-radius:.45rem; background:var(--card); color:var(--text); }
+.spacer { flex:1; }
+button { padding:.45rem .7rem; border:1px solid #dadada; background:var(--card); border-radius:.5rem; cursor:pointer; color:var(--text); }
+button:hover { background:#f3f4f6; }
+button.danger { border-color:#c33; color:#c33; }
+.badge { padding:.15rem .5rem; border-radius:.35rem; border:1px solid #ddd; }
+.badge.big { margin-left:.4rem; font-weight:600; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:.75rem; margin:.75rem; padding:.75rem; }
+h2 { margin:.1rem 0 .6rem 0; font-size:1rem; }
+h3 { margin:.4rem 0 .4rem 0; font-size:.95rem; color:var(--muted); }
+.grid { display:grid; gap:.5rem; }
+.grid.two { grid-template-columns: 1fr 1fr; }
+.grid.three { grid-template-columns: 1fr 1fr 1fr; grid-gap: 1%;}
+.grid.four { grid-template-columns: 1fr 1fr 1fr 1fr; align-items:end; grid-gap: 1%;}
+.op input, input { width:100%; padding:.45rem; border:1px solid #5553; border-radius:.35rem; background:var(--card); color:var(--text); }
+label { font-size:.85rem; color:var(--muted); display:block; margin-bottom:.15rem; }
+.row-inline { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.mt6 { margin-top:.6rem; }
+.note { font-size:.85rem; color:var(--muted); }
+.table-wrap { max-height: 380px; overflow:auto; border:1px solid var(--line); border-radius:.5rem; }
+table { width:100%; border-collapse: collapse; }
+thead th { position: sticky; top: 0; background:var(--card); }
+th, td { padding:.5rem; border-bottom:1px solid var(--line); text-align:left; font-size:.9rem; }
+td a { color: var(--accent); text-decoration: none; }
+td a:hover { text-decoration:underline; }
+.action-btn { padding:.2rem .5rem; border-radius:.35rem; border:1px solid #ddd; background:var(--card); }
+.action-btn:hover { background:#f1f5f9; }
+/* === SELECT / DROPDOWN =================================================== */
+select {
+  width: 100%;
+  padding: .45rem .6rem;
+  padding-right: 1.8rem;                   /* місце під стрілку */
+  border: 1px solid #5553;
+  border-radius: .35rem;
+  background-color: var(--card);
+  color: var(--text);
+
+  /* прибрати системну стрілку й поставити свою */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right .6rem center;
+  background-size: 12px 12px;
+
+  /* світла стрілка для лайт-теми */
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+<path fill='%23111' d='M7 10l5 5 5-5'/></svg>");
+}
+
+.dark select {
+  border-color: #334155;                   /* трохи контрастніша рамка */
+  /* світла стрілка для дарк-теми */
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+<path fill='%23e5e7eb' d='M7 10l5 5 5-5'/></svg>");
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* фон і текст у списку опцій */
+option {
+  background: var(--card);
+  color: var(--text);
+}
+
+/* стан disabled, щоб не «світилося» */
+select:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* дрібна косметика для ховера в дарк-темі */
+.dark button:hover,
+.dark .fileLabel:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+
+/* глобально */
+a { 
+  color: var(--muted); 
+  text-decoration: none; 
+}
+a:hover { 
+  color: var(--accent); 
+  text-decoration: underline; 
+}
+
+/* у таблицях портфеля – можна залишити яскравішими */
+.table-wrap td a { color: var(--accent); text-decoration: none; }
+
+th.sortable {
+  cursor: pointer;
+}
+th.sortable:hover {
+  text-decoration: underline;
+  color: var(--accent);
+}
+
+
+/* Link theming */
+a { color: var(--muted); text-decoration: none; }
+a:hover { color: var(--accent); text-decoration: underline; }
+
+
+/* === SELECT / DROPDOWN === */
+select {
+  width: 100%;
+  padding: .45rem .6rem;
+  padding-right: 1.8rem;
+  border: 1px solid #5553;
+  border-radius: .35rem;
+  background-color: var(--card);
+  color: var(--text);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right .6rem center;
+  background-size: 12px 12px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23111' d='M7 10l5 5 5-5'/></svg>");
+}
+.dark select {
+  border-color: #334155;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e5e7eb' d='M7 10l5 5 5-5'/></svg>");
+}
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56,189,248,.25);
+}
+option { background: var(--card); color: var(--text); }
+select:disabled { opacity: .6; cursor: not-allowed; }
+
+
+/* Sortable headers */
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--accent); text-decoration: underline; }
+th.sortable .arrow { margin-left: .25rem; opacity: .7; }
