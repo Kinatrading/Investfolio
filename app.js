@@ -725,3 +725,39 @@ $("#diagBatch").addEventListener("click", ()=> chrome.runtime.sendMessage({type:
 $("#diagTest").addEventListener("click", ()=> chrome.runtime.sendMessage({type:'testAlert'}));
 
 refreshDiag();
+
+
+
+// === Autofill API link (open page, grab item_nameid, build URL) ===
+(function(){
+  const btn = document.getElementById('autofillApiBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function(){
+    const urlEl = document.getElementById('itemUrl');
+    const apiEl = document.getElementById('apiUrl');
+    if (!urlEl || !apiEl){
+      alert('Не знайдено поля itemUrl/apiUrl');
+      return;
+    }
+    const listingUrl = String(urlEl.value||'').trim();
+    if (!listingUrl){
+      alert('Вкажи лінк на сторінку предмета (Steam Market).');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '⌛ Отримую…';
+    chrome.runtime.sendMessage({ type:'FETCH_API_LINK', listingUrl }, function(resp){
+      btn.disabled = false;
+      btn.textContent = '➕ Автозаповнити API';
+      if (chrome.runtime.lastError){
+        alert('Помилка: '+chrome.runtime.lastError.message);
+        return;
+      }
+      if (!resp || !resp.ok){
+        alert('Не вдалося отримати API-лінк: '+(resp && resp.error ? resp.error : 'невідома помилка'));
+        return;
+      }
+      apiEl.value = resp.apiUrl || '';
+    });
+  });
+})();

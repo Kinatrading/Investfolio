@@ -219,3 +219,73 @@ chrome.action.onClicked.addListener(function(){
   var url = chrome.runtime.getURL("app.html");
   chrome.windows.create({ url: url, type: "popup", width: 1200, height: 860 });
 });
+
+
+
+// === Autofill API link plumbing ===
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
+  try{
+    if (!msg || msg.type !== 'FETCH_API_LINK') return;
+    (async function(){
+      try{
+        const listingUrl = String(msg.listingUrl||'').trim();
+        if (!/^https:\/\/steamcommunity\.com\/market\/listings\//i.test(listingUrl)){
+          return sendResponse({ ok:false, error:'Неправильна сторінка предмета' });
+        }
+        // Open hidden tab
+        const tab = await chrome.tabs.create({ url: listingUrl, active: false });
+        await waitForTabComplete(tab.id);
+        // Extract item_nameid
+        const [{ result }] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: function(){
+            try{
+              const html = document.documentElement.innerHTML;
+              const m1 = html.match(/Market_LoadOrderSpread\(\s*(\d+)\s*\)/);
+              if (m1 && m1[1]) return { ok:true, itemNameId: m1[1] };
+              const m2 = html.match(/"item_nameid"\s*:\s*"(\d+)"/);
+              if (m2 && m2[1]) return { ok:true, itemNameId: m2[1] };
+              const scripts = Array.from(document.scripts).map(s => s.textContent || '');
+              for (const s of scripts){
+                const m = s.match(/Market_LoadOrderSpread\(\s*(\d+)\s*\)/) || s.match(/"item_nameid"\s*:\s*"(\d+)"/);
+                if (m && m[1]) return { ok:true, itemNameId: m[1] };
+              }
+              return { ok:false, error:'item_nameid not found' };
+            } catch(e){ return { ok:false, error: String(e) }; }
+          }
+        });
+        try { await chrome.tabs.remove(tab.id); } catch(e){}
+        if (!result || !result.itemNameId){
+          return sendResponse({ ok:false, error: (result && result.error) || 'item_nameid not found' });
+        }
+        const params = new URLSearchParams({
+          country: 'US',
+          language: 'english',
+          currency: '1',
+          item_nameid: String(result.itemNameId),
+          two_factor: '0'
+        });
+        const apiUrl = 'https://steamcommunity.com/market/itemordershistogram?' + params.toString();
+        sendResponse({ ok:true, apiUrl });
+      } catch (e){
+        sendResponse({ ok:false, error: String(e && e.message || e) });
+      }
+    })();
+    return true;
+  } catch(e){
+    sendResponse({ ok:false, error:String(e) });
+  }
+});
+
+function waitForTabComplete(tabId){
+  return new Promise(function(resolve, reject){
+    const to = setTimeout(function(){ cleanup(); reject(new Error('timeout loading listing page')); }, 30000);
+    function onUpdated(id, info){
+      if (id===tabId && info && info.status==='complete'){
+        clearTimeout(to); cleanup(); resolve();
+      }
+    }
+    function cleanup(){ chrome.tabs.onUpdated.removeListener(onUpdated); }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+  });
+}
