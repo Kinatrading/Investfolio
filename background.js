@@ -289,3 +289,259 @@ function waitForTabComplete(tabId){
     chrome.tabs.onUpdated.addListener(onUpdated);
   });
 }
+
+
+
+
+// ===== create "position" in main items list =====
+function genId(){
+  return (Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+}
+function toPosition(item){
+  return {
+    id: genId(),
+    name: item.name || 'Unknown item',
+    tags: '',
+    itemUrl: item.url || '',
+    apiUrl: item.api_url || '',
+    lots: [],
+    sells: [],
+    alertBuyAtOrBelow: null,
+    alertSellAtOrAbove: null,
+    firstSellPrice: null,
+    firstSellQty: null,
+    firstBuyPrice: null,
+    firstBuyQty: null,
+    lastFetchedAt: null,
+    priceHistory: []
+  };
+}
+
+// ===== items DB handling =====
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg && msg.type === 'ADD_ITEM' && msg.item) {
+    const item = msg.item;
+    chrome.storage.local.get({ items_db: [], items: [] }, (data) => {
+      const arr = Array.isArray(data.items_db) ? data.items_db : [];
+      const items = Array.isArray(data.items) ? data.items : [];
+      // Avoid duplicates by URL in items_db
+      let existsDb = arr.find(x => x && x.url === item.url);
+      if (!existsDb) {
+        arr.push(item);
+      } else {
+        existsDb.name = item.name || existsDb.name;
+        existsDb.api_url = item.api_url || existsDb.api_url;
+        existsDb.ts = Date.now();
+      }
+      // Upsert main items (positions)
+      let pos = items.find(x => x && (x.itemUrl === item.url || x.apiUrl === item.api_url));
+      let created = false;
+      if (!pos) {
+        created = true;
+        pos = {
+          id: (Date.now().toString(36) + Math.random().toString(36).slice(2,8)),
+          name: item.name || 'Unknown item',
+          tags: '',
+          itemUrl: item.url || '',
+          apiUrl: item.api_url || '',
+          lots: [],
+          sells: [],
+          alertBuyAtOrBelow: null,
+          alertSellAtOrAbove: null,
+          firstSellPrice: null,
+          firstSellQty: null,
+          firstBuyPrice: null,
+          firstBuyQty: null,
+          lastFetchedAt: null,
+          priceHistory: []
+        };
+        items.push(pos);
+      } else {
+        if (item.name) pos.name = item.name;
+        if (item.api_url) pos.apiUrl = item.api_url;
+        if (item.url) pos.itemUrl = item.url;
+      }
+      chrome.storage.local.set({ items_db: arr, items }, () => {
+        try {
+          chrome.notifications.create('', {
+            type: 'basic',
+            iconUrl: 'icon128.png',
+            title: created ? 'Створено позицію' : 'Оновлено позицію',
+            message: (item.name || 'Без назви')
+          });
+        } catch (e) {}
+        sendResponse({ ok: true, created, position: pos });
+      });
+    });
+    return true; // async
+  }
+});
+
+
+
+
+// ===== enhanced ADD_ITEM with qty/price/alerts and app refresh =====
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg && msg.type === 'ADD_ITEM' && msg.item) {
+    const item = msg.item || {};
+    const qty = Number.isFinite(msg.qty) ? msg.qty : (isFinite(parseFloat(msg.qty)) ? parseFloat(msg.qty) : null);
+    const price = Number.isFinite(msg.price) ? msg.price : (isFinite(parseFloat(msg.price)) ? parseFloat(msg.price) : null);
+    const alertBuy = Number.isFinite(msg.alertBuy) ? msg.alertBuy : (isFinite(parseFloat(msg.alertBuy)) ? parseFloat(msg.alertBuy) : null);
+    const alertSell = Number.isFinite(msg.alertSell) ? msg.alertSell : (isFinite(parseFloat(msg.alertSell)) ? parseFloat(msg.alertSell) : null);
+
+    function notify(message){
+      try {
+        chrome.notifications.create('', {
+          type: 'basic',
+          iconUrl: 'icon128.png',
+          title: message.title || 'Оновлено позицію',
+          message: message.message || (item.name || '')
+        });
+      } catch(e){}
+    }
+
+    chrome.storage.local.get({ items: [], items_db: [] }, (data) => {
+      const items = Array.isArray(data.items) ? data.items : [];
+      // upsert by URL (itemUrl)
+      let rec = items.find(x => x && (x.itemUrl === item.url || x.apiUrl === item.api_url));
+      const now = Date.now();
+      if (!rec) {
+        rec = {
+          id: 'it_' + now,
+          name: item.name || 'Unknown item',
+          tags: '',
+          itemUrl: item.url || '',
+          apiUrl: item.api_url || '',
+          lots: [], // purchases
+          sells: [],
+          alertBuyAtOrBelow: null,
+          alertSellAtOrAbove: null,
+          firstSellPrice: null, firstSellQty: null,
+          firstBuyPrice: null, firstBuyQty: null,
+          lastFetchedAt: null,
+          priceHistory: []
+        };
+        items.push(rec);
+      } else {
+        // keep name/urls fresh
+        rec.name = item.name || rec.name;
+        rec.itemUrl = item.url || rec.itemUrl;
+        rec.apiUrl = item.api_url || rec.apiUrl;
+      }
+
+      // apply alerts if provided
+      if (alertBuy != null && !Number.isNaN(alertBuy)) rec.alertBuyAtOrBelow = alertBuy;
+      if (alertSell != null && !Number.isNaN(alertSell)) rec.alertSellAtOrAbove = alertSell;
+
+      // add purchase lot if qty & price provided
+      if (qty != null && !Number.isNaN(qty) && price != null && !Number.isNaN(price)) {
+        rec.lots = Array.isArray(rec.lots) ? rec.lots : [];
+        rec.lots.push({ qty, price, ts: now, src: 'steam-button' });
+      }
+
+      chrome.storage.local.set({ items }, () => {
+        // Also keep a tech list if needed
+        const arr = Array.isArray(data.items_db) ? data.items_db : [];
+        const ex = arr.find(x => x && x.url === item.url);
+        if (!ex) arr.push({ name: item.name, url: item.url, api_url: item.api_url, ts: now, source: 'steam_listing' });
+        chrome.storage.local.set({ items_db: arr }, () => {
+          notify({ title: rec ? 'Створено/оновлено позицію' : 'Створено позицію', message: (item.name || '') });
+
+          // Try to refresh any open app.html tabs
+          const appUrl = chrome.runtime.getURL('app.html');
+          chrome.tabs.query({ url: appUrl }, (tabs) => {
+            (tabs || []).forEach(t => {
+              try { chrome.tabs.reload(t.id); } catch(e){}
+            });
+          });
+
+          sendResponse({ ok: true, saved: { id: rec.id, name: rec.name }});
+        });
+      });
+    });
+    return true; // async
+  }
+});
+
+
+
+// ===== items DB & positions handling =====
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg && msg.type === 'ADD_ITEM' && msg.item) {
+    const item = msg.item;
+    const qty = (typeof msg.qty==='number' && isFinite(msg.qty) && msg.qty>0) ? Math.floor(msg.qty) : null;
+    const price = (typeof msg.price==='number' && isFinite(msg.price) && msg.price>=0) ? msg.price : null;
+    const alertBuy = (typeof msg.alertBuy==='number' && isFinite(msg.alertBuy) && msg.alertBuy>=0) ? msg.alertBuy : null;
+    const alertSell = (typeof msg.alertSell==='number' && isFinite(msg.alertSell) && msg.alertSell>=0) ? msg.alertSell : null;
+
+    // Keep legacy list optional
+    chrome.storage.local.get({ items_db: [], items: [] }, (data) => {
+      const arr = Array.isArray(data.items_db) ? data.items_db : [];
+      const existsLegacy = arr.find(x => x && x.url === item.url);
+      if (!existsLegacy) { arr.push(item); }
+      else {
+        existsLegacy.name = item.name || existsLegacy.name;
+        existsLegacy.api_url = item.api_url || existsLegacy.api_url;
+        existsLegacy.ts = Date.now();
+      }
+
+      // Upsert into main 'items' used by app
+      const items = Array.isArray(data.items) ? data.items : [];
+      let pos = items.find(x => x && (x.itemUrl === item.url || x.apiUrl === item.api_url || x.name === item.name));
+      const nowISO = new Date().toISOString();
+      if (!pos) {
+        pos = {
+          id: String(Date.now()) + Math.random().toString(36).slice(2,8),
+          name: item.name || 'Unknown item',
+          tags: '',
+          itemUrl: item.url,
+          apiUrl: item.api_url,
+          lots: [], sells: [],
+          firstSellPrice:null, firstSellQty:null,
+          firstBuyPrice:null,  firstBuyQty:null,
+          alertBuyAtOrBelow: null,
+          alertSellAtOrAbove: null,
+          lastFetchedAt: null,
+          priceHistory: []
+        };
+        items.push(pos);
+      } else {
+        // update URLs / name if needed
+        if (item.url) pos.itemUrl = item.url;
+        if (item.api_url) pos.apiUrl = item.api_url;
+        if (item.name) pos.name = item.name;
+      }
+
+      if (alertBuy!=null) pos.alertBuyAtOrBelow = alertBuy;
+      if (alertSell!=null) pos.alertSellAtOrAbove = alertSell;
+
+      if (qty && price!=null) {
+        pos.lots = Array.isArray(pos.lots) ? pos.lots : [];
+        pos.lots.push({ qty, price, ts: nowISO, src: 'steam-button' });
+      }
+
+      chrome.storage.local.set({ items_db: arr, items }, () => {
+        try {
+          chrome.notifications.create('', {
+            type: 'basic',
+            iconUrl: 'icon128.png',
+            title: (existsLegacy ? 'Оновлено позицію' : 'Створено позицію'),
+            message: (item.name || 'Без назви')
+          });
+        } catch (e) {}
+        // Try to auto-refresh our app.html tab so UI updates
+        try {
+          chrome.tabs.query({}, tabs => {
+            for (const t of tabs) {
+              if (t && t.url && /chrome-extension:\/\/.*\/app\.html/i.test(t.url)) {
+                chrome.tabs.reload(t.id);
+              }
+            }
+          });
+        } catch(e){}
+        sendResponse({ ok: true, saved: { id: pos.id, name: pos.name }, updated: !!existsLegacy });
+      });
+    });
+    return true; // async
+  }
+});
