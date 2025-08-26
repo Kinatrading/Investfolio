@@ -8,9 +8,10 @@ const mkt = $("#mkt");
 const links = $("#links");
 const chart = $("#chart");
 const hdrUnreal = $("#hdrUnreal");
+const rootEl = document.documentElement; // <html>, щоб тема працювала всюди
 
+// ---- сортування (існуюча логіка з індикаторами) ----
 let sortState = { key: null, dir: 'desc' }; // 'asc' | 'desc'
-
 function getSortVal(it, key){
   const m = calc(it);
   switch(key){
@@ -68,12 +69,14 @@ function bindSorting(){
   updateSortIndicators();
 }
 
-const d_alarm = $("#d_alarm"); const d_alarm_at=$("#d_alarm_at"); const d_batch=$("#d_batch"); const d_stats=$("#d_stats"); const d_log=$("#diagLog");
-const bodyEl = $("#body");
+// ---- діагностика з шапки ----
+const d_alarm = $("#d_alarm"), d_alarm_at=$("#d_alarm_at"), d_batch=$("#d_batch"), d_stats=$("#d_stats"), d_log=$("#diagLog");
 
+// ---- state ----
 let state = { items: [], settings: { feePct: 0.15, autoRefreshMinutes: 0, batchDelayMs:200, valuationMode:'sell', theme:'light' } };
 let depthCache = { sell: [], buy: [] };
 
+// ---- utils ----
 function uid(){ return Math.random().toString(36).slice(2, 9); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmt(n){ return (Number.isFinite(n) ? Number(n).toFixed(2) : ""); }
@@ -99,7 +102,6 @@ function alertStatus(it){
   return tags.join(" | ");
 }
 
-
 function ensureShapes(){
   for (const it of state.items){
     it.lots ||= [];
@@ -116,7 +118,7 @@ function ensureShapes(){
 async function load(){
   const { items=[], settings={} } = await chrome.storage.local.get(["items","settings"]);
   state.items = items; state.settings = Object.assign(state.settings, settings||{});
-  bodyEl.classList.toggle('dark', state.settings.theme==='dark');
+  rootEl.classList.toggle('dark', state.settings.theme==='dark'); // темна тема на <html>
   ensureShapes();
   renderAll();
   renderSettings();
@@ -127,6 +129,7 @@ async function save(){
   renderAll();
 }
 
+// ---- фінмодель ----
 function calc(it){
   const buysQty = it.lots.reduce((s,x)=> s + (x.qty||0), 0);
   const buysCost = it.lots.reduce((s,x)=> s + (x.qty||0) * (x.price||0), 0);
@@ -143,7 +146,7 @@ function calc(it){
   const marketValue = (marketPrice!=null) ? marketPrice * heldQty : null;
   const unrealized = (marketValue!=null) ? (marketValue - netCost) : null;
   const roi = (unrealized!=null && netCost>0) ? (unrealized/netCost*100) : null;
-  const vol = volatility(it); // std dev of last 30 market prices (gross)
+  const vol = volatility(it); // std dev останніх 30 цін
   return { heldQty, avgCost, netCost, realized, marketPrice, unrealized, roi, vol };
 }
 
@@ -155,6 +158,7 @@ function volatility(it){
   return Math.sqrt(variance);
 }
 
+// ---- спарклайн обраного айтема (як було) ----
 function drawChart(item){
   if (!chart || !chart.getContext) return;
   const ctx = chart.getContext("2d");
@@ -193,15 +197,16 @@ function portfolioTotals(){
   return { totalInvested, totalRealized, totalUnreal };
 }
 
+// ---- головний рендер ----
 function renderAll(){
-  // filter by search/tags
+  // фільтр по пошуку/теґах
   const query = ($("#search").value||"").toLowerCase().trim();
   const filter = (it)=>{
     if (!query) return true;
     return it.name.toLowerCase().includes(query) || (it.tags||"").toLowerCase().includes(query);
   };
 
-  // Select
+  // селект
   itemSelect.innerHTML = "";
   for (const it of state.items.filter(filter)){
     const opt = document.createElement("option");
@@ -217,10 +222,10 @@ function renderAll(){
       `<span class="note">Теги: ${sel.tags||"(немає)"}</span>`);
     drawChart(sel);
     renderBreakeven(sel);
-    renderDepth(); // from last fetch parse cache
+    renderDepth();
   }
 
-  // Portfolio table
+  // таблиця портфелю
   tbody.innerHTML = "";
   let rows = state.items.filter(filter);
   rows = applySort(rows);
@@ -247,7 +252,7 @@ function renderAll(){
       <td>${it.itemUrl ? `<a target="_blank" href="${it.itemUrl}">open</a>` : ""} <button class="action-btn" data-edit-itemurl="${it.id}">✎</button></td>
       <td>${it.apiUrl ? `<a target="_blank" href="${it.apiUrl}">open</a>` : ""} <button class="action-btn" data-edit-apiurl="${it.id}">✎</button></td>
       <td>${alertStatus(it)}</td>
-      <td>${it.lastFetchedAt||""}</td>
+      <td>${it.lastFetchedAt || it.createdAt || ""}</td>
       <td><button class="action-btn" data-del-item="${it.id}">🗑️</button></td>
     `;
     tbody.appendChild(tr);
@@ -255,7 +260,7 @@ function renderAll(){
   summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL: ₴${fmt(totalRealized)} • Unrealized PnL: ₴${fmt(totalUnreal)}`;
   hdrUnreal.textContent = `Unrealized ₴${fmt(totalUnreal)}`;
 
-  // History
+  // історія
   histBody.innerHTML = "";
   const hrows = [];
   for (const it of state.items){
@@ -285,7 +290,7 @@ function renderAll(){
     histBody.appendChild(tr);
   }
 
-  // attach handlers
+  // хендлери
   tbody.onclick = (e)=>{
     const t = e.target;
     if (t.dataset.delItem){
@@ -305,7 +310,6 @@ function renderAll(){
       if (val!==null){ it.apiUrl = val.trim(); save(); }
     }
   };
-
   tbody.onchange = (e)=>{
     const t = e.target;
     if (t.classList.contains("alertBuy")){
@@ -319,7 +323,6 @@ function renderAll(){
       save();
     }
   };
-
   histBody.onclick = (e)=>{
     const t = e.target;
     if (t.dataset.del){
@@ -338,26 +341,19 @@ function renderAll(){
       if (!it) return;
       if (kind==="buy"){
         const rec = it.lots.find(x=>x.id===id);
-        const qty = prompt("К-сть:", rec.qty);
-        if (qty===null) return;
-        const price = prompt("Ціна (грн):", rec.price);
-        if (price===null) return;
-        const date = prompt("Дата (YYYY-MM-DD):", rec.date||todayISO());
-        if (date===null) return;
+        const qty = prompt("К-сть:", rec.qty);  if (qty===null) return;
+        const price = prompt("Ціна (грн):", rec.price); if (price===null) return;
+        const date = prompt("Дата (YYYY-MM-DD):", rec.date||todayISO()); if (date===null) return;
         rec.qty = parseInt(qty,10);
         rec.price = parseFloat(price);
         rec.date = date;
         save();
       } else {
         const rec = it.sells.find(x=>x.id===id);
-        const qty = prompt("К-сть:", rec.qty);
-        if (qty===null) return;
-        const price = prompt("Ціна (грн):", rec.price);
-        if (price===null) return;
-        const avg = prompt("Avg cost @ sale:", rec.avgCostAtSale);
-        if (avg===null) return;
-        const date = prompt("Дата (YYYY-MM-DD):", rec.date||todayISO());
-        if (date===null) return;
+        const qty = prompt("К-сть:", rec.qty); if (qty===null) return;
+        const price = prompt("Ціна (грн):", rec.price); if (price===null) return;
+        const avg = prompt("Avg cost @ sale:", rec.avgCostAtSale); if (avg===null) return;
+        const date = prompt("Дата (YYYY-MM-DD):", rec.date||todayISO()); if (date===null) return;
         rec.qty = parseInt(qty,10);
         rec.price = parseFloat(price);
         rec.avgCostAtSale = parseFloat(avg);
@@ -368,6 +364,7 @@ function renderAll(){
   };
 }
 
+// ---- break-even ----
 function renderBreakeven(it){
   const fee = (it.feePct!=null ? it.feePct : state.settings.feePct);
   const avg = calc(it).avgCost;
@@ -379,32 +376,17 @@ function renderBreakeven(it){
   `;
 }
 
-
-
-// підключення до th
-document.querySelectorAll("th.sortable").forEach(th => {
-  th.addEventListener("click", () => sortItems(th.dataset.key));
-});
-
-
-
+// ---- глибина ринку ----
 function renderDepth(){
   const tb = $("#depth tbody");
   tb.innerHTML = "";
   const rows = [];
   let cum=0;
-  for (const r of (depthCache.sell||[])){
-    cum += (r.qty||0);
-    rows.push(`<tr><td>sell</td><td>${fmt(r.price)}</td><td>${r.qty||""}</td><td>${cum}</td></tr>`);
-  }
+  for (const r of (depthCache.sell||[])){ cum += (r.qty||0); rows.push(`<tr><td>sell</td><td>${fmt(r.price)}</td><td>${r.qty||""}</td><td>${cum}</td></tr>`); }
   cum=0;
-  for (const r of (depthCache.buy||[])){
-    cum += (r.qty||0);
-    rows.push(`<tr><td>buy</td><td>${fmt(r.price)}</td><td>${r.qty||""}</td><td>${cum}</td></tr>`);
-  }
+  for (const r of (depthCache.buy||[])){ cum += (r.qty||0); rows.push(`<tr><td>buy</td><td>${fmt(r.price)}</td><td>${r.qty||""}</td><td>${cum}</td></tr>`); }
   tb.innerHTML = rows.join("");
 }
-
 function parseTopN(htmlStr, n){
   try{
     const un = htmlStr.replace(/\\"/g,'"').replace(/\\\//g,'/').replace(/\\n/g,'').replace(/\\t/g,'').replace(/\\r/g,'');
@@ -422,57 +404,10 @@ function parseTopN(htmlStr, n){
   }catch(e){ return []; }
 }
 
+// ---- налаштування ----
 async function saveSettings(){ await chrome.storage.local.set({ settings: state.settings }); }
 
-let currentSort = { key: null, asc: true };
-
-function sortItems(key) {
-  if (currentSort.key === key) {
-    currentSort.asc = !currentSort.asc;
-  } else {
-    currentSort.key = key;
-    currentSort.asc = true;
-  }
-
-  state.items.sort((a, b) => {
-    let va, vb;
-    switch (key) {
-      case "name":
-        va = a.name.toLowerCase();
-        vb = b.name.toLowerCase();
-        break;
-      case "qty":
-        va = a.qty || 0; vb = b.qty || 0;
-        break;
-      case "avg":
-        va = a.avgCost || 0; vb = b.avgCost || 0;
-        break;
-      case "invested":
-        va = a.netInvested || 0; vb = b.netInvested || 0;
-        break;
-      case "market":
-        va = a.marketPrice || 0; vb = b.marketPrice || 0;
-        break;
-      case "unreal":
-        va = a.unrealized || 0; vb = b.unrealized || 0;
-        break;
-      case "roi":
-        va = a.roiPct || 0; vb = b.roiPct || 0;
-        break;
-      case "vol":
-        va = a.volatility || 0; vb = b.volatility || 0;
-        break;
-      default:
-        va = 0; vb = 0;
-    }
-    if (va < vb) return currentSort.asc ? -1 : 1;
-    if (va > vb) return currentSort.asc ? 1 : -1;
-    return 0;
-  });
-  renderDepth(); // твоя функція рендеру
-}
-
-// ====== events ======
+// ---- події UI ----
 $("#saveSettingsBtn").addEventListener("click", async ()=>{
   state.settings.feePct = Math.max(0, parseFloat($("#feePct").value||"0")/100);
   state.settings.autoRefreshMinutes = Math.max(0, parseInt($("#autoRefreshMinutes").value||"0",10));
@@ -484,8 +419,7 @@ $("#saveSettingsBtn").addEventListener("click", async ()=>{
 
 $("#themeBtn").addEventListener("click", async ()=>{
   state.settings.theme = (state.settings.theme==='dark'?'light':'dark');
-  const bodyEl = document.getElementById('body');
-  bodyEl.classList.toggle('dark', state.settings.theme==='dark');
+  rootEl.classList.toggle('dark', state.settings.theme==='dark'); // клас на <html>
   await saveSettings();
 });
 
@@ -495,7 +429,8 @@ $("#createItemBtn").addEventListener("click", ()=>{
   const itemUrl = $("#itemUrl").value.trim();
   const apiUrl = $("#apiUrl").value.trim();
   if (!name){ alert("Вкажіть назву."); return; }
-  state.items.push({ id: uid(), name, tags, itemUrl, apiUrl, lots: [], sells: [], firstSellPrice:null, firstSellQty:null, firstBuyPrice:null, firstBuyQty:null, lastFetchedAt:null, priceHistory:[] });
+  // додано createdAt: щоб дата з'являлась одразу
+  state.items.push({ id: uid(), name, tags, itemUrl, apiUrl, createdAt: todayISO(), lots: [], sells: [], firstSellPrice:null, firstSellQty:null, firstBuyPrice:null, firstBuyQty:null, lastFetchedAt:null, priceHistory:[] });
   $("#name").value = ""; $("#tags").value=""; $("#itemUrl").value=""; $("#apiUrl").value="";
   save();
 });
@@ -544,67 +479,57 @@ $("#editLinksBtn").addEventListener("click", ()=>{
   save();
 });
 
+// ---- запит до Steam API itemordershistogram ----
 async function fetchOne(it){
   if (!it.apiUrl){ throw new Error("No API URL"); }
   const res = await fetch(it.apiUrl, { cache: "no-cache" });
   const data = await res.json();
-  function unescapeHtmlString(s){ return s.replace(/\\"/g,'"').replace(/\\\//g,'/').replace(/\\n/g,'').replace(/\\t/g,'').replace(/\\r/g,''); }
-  function stripTags(s){ return s.replace(/<[^>]*>/g,''); }
+
+  function unescapeHtmlString(s){ return String(s||"").replace(/\\"/g,'"').replace(/\\\//g,'/').replace(/\\n/g,'').replace(/\\t/g,'').replace(/\\r/g,''); }
+  function stripTags(s){ return String(s||"").replace(/<[^>]*>/g,''); }
   function parseRowFromTable(htmlStr){
-    const un = unescapeHtmlString(htmlStr||"");
-    const rows = un.split(/<tr[^>]*>/i).slice(1);
-    if (rows.length>=2){
-      const cells = rows[1].split(/<\/?td[^>]*>/i).map(x=>x.trim()).filter(Boolean);
-      if (cells.length>=2){
-        const priceTxt = stripTags(cells[0]).trim();
-        const qtyTxt = stripTags(cells[1]).trim();
-        const price = parseFloat(priceTxt.replace(/[^\d,\.]/g,'').replace(',','.'));
-        const qty = parseInt(qtyTxt.replace(/[^\d]/g,''),10);
-        return { price, qty };
+    try{
+      const un = unescapeHtmlString(htmlStr||"");
+      const rows = un.split(/<tr[^>]*>/i).slice(1);
+      if (rows.length>=2){
+        const cells = rows[1].split(/<\/?td[^>]*>/i).map(x=>x.trim()).filter(Boolean);
+        if (cells.length>=2){
+          const priceTxt = stripTags(cells[0]).trim();
+          const qtyTxt = stripTags(cells[1]).trim();
+          const price = parseFloat(priceTxt.replace(/[^\d,\.]/g,'').replace(',','.'));
+          const qty = parseInt(qtyTxt.replace(/[^\d]/g,''),10);
+          return { price, qty };
+        }
       }
-    }
+    }catch(e){}
     return { price:null, qty:null };
   }
+
   let firstSell = {price:null, qty:null}, firstBuy = {price:null, qty:null};
   if (data.sell_order_table) firstSell = parseRowFromTable(data.sell_order_table);
   if (data.buy_order_table) firstBuy = parseRowFromTable(data.buy_order_table);
   if (firstSell.price==null && data.lowest_sell_order){
-    firstSell.price = parseFloat(String(data.lowest_sell_order).replace(/[^\d,\.]/g,'').replace(',','.'));
+    const p = parseFloat(String(data.lowest_sell_order).replace(/[^\d,\.]/g,'').replace(',','.'));
+    if (isFinite(p)) firstSell.price = p;
   }
   if (firstBuy.price==null && data.highest_buy_order){
-    firstBuy.price = parseFloat(String(data.highest_buy_order).replace(/[^\d,\.]/g,'').replace(',','.'));
+    const b = parseFloat(String(data.highest_buy_order).replace(/[^\d,\.]/g,'').replace(',','.'));
+    if (isFinite(b)) firstBuy.price = b;
   }
-  it.firstSellPrice = firstSell.price;
-  it.firstSellQty = firstSell.qty;
-  it.firstBuyPrice = firstBuy.price;
-  it.firstBuyQty = firstBuy.qty;
+
+  it.firstSellPrice = firstSell.price; it.firstSellQty = firstSell.qty;
+  it.firstBuyPrice = firstBuy.price;   it.firstBuyQty = firstBuy.qty;
   it.lastFetchedAt = new Date().toISOString();
+
+  // історія цін для графіків
   it.priceHistory = it.priceHistory || [];
   it.priceHistory.push({ t: it.lastFetchedAt, s: it.firstSellPrice, b: it.firstBuyPrice });
   if (it.priceHistory.length > 600) it.priceHistory.shift();
 
   // depth top5
   depthCache.sell = data.sell_order_table ? parseTopN(data.sell_order_table, 5) : [];
-  depthCache.buy = data.buy_order_table ? parseTopN(data.buy_order_table, 5) : [];
-
+  depthCache.buy  = data.buy_order_table ? parseTopN(data.buy_order_table, 5) : [];
   return it;
-}
-
-function parseTopN(htmlStr, n){
-  try{
-    const un = htmlStr.replace(/\\"/g,'"').replace(/\\\//g,'/').replace(/\\n/g,'').replace(/\\t/g,'').replace(/\\r/g,'');
-    const rows = un.split(/<tr[^>]*>/i).slice(1).slice(1, n+1);
-    const out=[];
-    for (const r of rows){
-      const cells = r.split(/<\/?td[^>]*>/i).map(x=>x.trim()).filter(Boolean);
-      if (cells.length>=2){
-        const price = parseFloat(cells[0].replace(/<[^>]*>/g,'').replace(/[^\d,\.]/g,'').replace(',','.'));
-        const qty = parseInt(cells[1].replace(/<[^>]*>/g,'').replace(/[^\d]/g,''),10);
-        out.push({price, qty});
-      }
-    }
-    return out;
-  }catch(e){ return []; }
 }
 
 $("#fetchBtn").addEventListener("click", async ()=>{
@@ -630,9 +555,7 @@ $("#scanAllBtn").addEventListener("click", ()=>{
 });
 
 $("#openAllBtn").addEventListener("click", ()=>{
-  for (const it of state.items){
-    if (it.apiUrl) window.open(it.apiUrl, "_blank");
-  }
+  for (const it of state.items){ if (it.apiUrl) window.open(it.apiUrl, "_blank"); }
 });
 
 $("#exportJsonBtn").addEventListener("click", ()=>{
@@ -654,9 +577,7 @@ $("#importFile").addEventListener("change", async (e)=>{
     if (data.settings) state.settings = Object.assign(state.settings, data.settings);
     await save();
     alert("Імпорт виконано.");
-  }catch(err){
-    alert("Не вдалось імпортувати JSON.");
-  }
+  }catch(err){ alert("Не вдалось імпортувати JSON."); }
   e.target.value = "";
 });
 
@@ -669,9 +590,7 @@ $("#clearBtn").addEventListener("click", async ()=>{
 
 itemSelect.addEventListener("change", ()=>{
   const it = state.items.find(x=>x.id===itemSelect.value);
-  renderBreakeven(it);
-  drawChart(it);
-  renderDepth();
+  renderBreakeven(it); drawChart(it); renderDepth();
 });
 
 $("#roiTarget").addEventListener("keydown", (e)=>{ if(e.key==='Enter') $("#calcRoiBtn").click(); });
@@ -688,7 +607,7 @@ $("#calcRoiBtn").addEventListener("click", ()=>{
   $("#roiOut").textContent = `Для ROI ${Math.round(roi*100)}% лістинг ≈ ₴${fmt(listingRequired)} (нетто буде ₴${fmt(targetNet)})`;
 });
 
-// Hotkeys
+// Хоткеї
 document.addEventListener("keydown", (e)=>{
   if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='s'){ $("#scanAllBtn").click(); }
   if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='f'){ $("#fetchBtn").click(); }
@@ -699,6 +618,7 @@ $("#opDate").value = todayISO();
 load();
 bindSorting();
 
+// ---- діагностика з background ----
 async function refreshDiag(){
   return new Promise((resolve)=>{
     chrome.runtime.sendMessage({type:'getDiag'}, (resp)=>{
@@ -712,10 +632,8 @@ async function refreshDiag(){
         const errs = st.diag?.lastBatchErrors||0;
         d_stats.textContent = `${items} / ${errs} / ${ms}ms`;
         const logs = st.logs||[];
-        d_log.value = logs.map(x => `[${x.t}] ${x.msg}`).join('\\n');
-      }catch(e){
-        d_log.value = 'diag error: '+e;
-      }
+        d_log.value = logs.map(x => `[${x.t}] ${x.msg}`).join('\n');
+      }catch(e){ d_log.value = 'diag error: '+e; }
       resolve();
     });
   });
@@ -723,41 +641,225 @@ async function refreshDiag(){
 $("#diagRefresh").addEventListener("click", refreshDiag);
 $("#diagBatch").addEventListener("click", ()=> chrome.runtime.sendMessage({type:'batchScan'}));
 $("#diagTest").addEventListener("click", ()=> chrome.runtime.sendMessage({type:'testAlert'}));
-
 refreshDiag();
 
-
-
-// === Autofill API link (open page, grab item_nameid, build URL) ===
+// ---- Автозаповнення API URL зі сторінки предмета ----
 (function(){
   const btn = document.getElementById('autofillApiBtn');
   if (!btn) return;
   btn.addEventListener('click', function(){
     const urlEl = document.getElementById('itemUrl');
     const apiEl = document.getElementById('apiUrl');
-    if (!urlEl || !apiEl){
-      alert('Не знайдено поля itemUrl/apiUrl');
-      return;
-    }
+    if (!urlEl || !apiEl){ alert('Не знайдено поля itemUrl/apiUrl'); return; }
     const listingUrl = String(urlEl.value||'').trim();
-    if (!listingUrl){
-      alert('Вкажи лінк на сторінку предмета (Steam Market).');
-      return;
-    }
-    btn.disabled = true;
-    btn.textContent = '⌛ Отримую…';
+    if (!listingUrl){ alert('Вкажи лінк на сторінку предмета (Steam Market).'); return; }
+    btn.disabled = true; btn.textContent = '⌛ Отримую…';
     chrome.runtime.sendMessage({ type:'FETCH_API_LINK', listingUrl }, function(resp){
-      btn.disabled = false;
-      btn.textContent = '➕ Автозаповнити API';
-      if (chrome.runtime.lastError){
-        alert('Помилка: '+chrome.runtime.lastError.message);
-        return;
-      }
-      if (!resp || !resp.ok){
-        alert('Не вдалося отримати API-лінк: '+(resp && resp.error ? resp.error : 'невідома помилка'));
-        return;
-      }
+      btn.disabled = false; btn.textContent = '➕ Автозаповнити API';
+      if (chrome.runtime.lastError){ alert('Помилка: '+chrome.runtime.lastError.message); return; }
+      if (!resp || !resp.ok){ alert('Не вдалося отримати API-лінк: '+(resp && resp.error ? resp.error : 'невідома помилка')); return; }
       apiEl.value = resp.apiUrl || '';
     });
   });
 })();
+
+// ---- Live-оновлення з background: миттєво перераховуємо Unrealized ----
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.items && changes.items.newValue) {
+    try { state.items = changes.items.newValue; renderAll(); }
+    catch(e){ console.warn('storage.onChanged renderAll error', e); }
+  }
+});
+
+// ======== Динаміка портфелю (timeseries) ========
+
+// зберігання таймсеріалу
+const pnlChart = document.getElementById('pnlChart');
+async function loadMetrics(){
+  return new Promise(resolve => {
+    chrome.storage.local.get({ metrics_timeseries_v1: [] }, (data)=> resolve(data.metrics_timeseries_v1 || []));
+  });
+}
+function saveMetrics(arr){
+  return new Promise(resolve => chrome.storage.local.set({ metrics_timeseries_v1: arr }, resolve));
+}
+async function saveMetricsPoint(point){
+  try{
+    const arr = await loadMetrics();
+    const last = arr[arr.length-1];
+    const tooSoon = last && (Date.now() - last.t < 30000);
+    const same = last && last.invested===point.invested && last.realized===point.realized && last.unrealized===point.unrealized;
+    if (!(tooSoon && same)){
+      arr.push(point);
+      if (arr.length>2000) arr.splice(0, arr.length-2000);
+      await saveMetrics(arr);
+      drawPortfolioChart(arr);
+    }
+  }catch(e){ console.warn('saveMetricsPoint', e); }
+}
+
+// «красиві» тики по Y та форматери
+function niceTicks(min, max, maxTicks = 6){
+  const span = max - min || 1;
+  const step0 = span / Math.max(1, maxTicks - 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const norm = step0 / mag;
+  const step = (norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1) * mag;
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = start; v <= end + 1e-9; v += step) ticks.push(v);
+  return { ticks, start, end };
+}
+const fmtMoney = v => `₴${v.toFixed(2)}`;
+const fmtDate = t => new Date(t).toLocaleDateString([], { day:'2-digit', month:'short' });
+
+// респонсивний канвас (на всю ширину)
+let __pnlArrCache = null;
+function resizePnlCanvas(cvs){
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = Math.floor(cvs.clientWidth || cvs.getBoundingClientRect().width || 540);
+  let cssH = Math.floor(cvs.clientHeight || cvs.getBoundingClientRect().height || 0);
+  if (cssH < 40) { cssH = 260; cvs.style.height = cssH+'px'; } // дефолт
+  const need = cvs.width !== cssW * dpr || cvs.height !== cssH * dpr;
+  if (need){
+    const ctx = cvs.getContext('2d');
+    cvs.width  = cssW * dpr;
+    cvs.height = cssH * dpr;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+  }
+}
+window.addEventListener('resize', ()=>{
+  if (!pnlChart) return;
+  resizePnlCanvas(pnlChart);
+  if (__pnlArrCache) drawPortfolioChart(__pnlArrCache);
+});
+
+// основний малюнок timeseries
+function drawPortfolioChart(arr){
+  const cvs = document.getElementById('pnlChart');
+  if (!cvs || !cvs.getContext) return;
+  __pnlArrCache = arr;
+  resizePnlCanvas(cvs);
+
+  const ctx = cvs.getContext('2d');
+  const w = Math.floor(cvs.clientWidth || 540);
+  const h = Math.floor(cvs.clientHeight || 260);
+
+  ctx.clearRect(0,0,w,h);
+  if (!arr || arr.length < 2) return;
+
+  const inv = arr.map(p=>p.invested);
+  const rea = arr.map(p=>p.realized);
+  const unr = arr.map(p=>p.unrealized);
+  const t0 = arr[0].t, t1 = arr[arr.length-1].t;
+
+  const yMin = Math.min(...inv, ...rea, ...unr);
+  const yMax = Math.max(...inv, ...rea, ...unr);
+
+  // поля
+  const left = 64, right = 10, top = 10, bottom = 28;
+  const W = Math.max(10, w - left - right);
+  const H = Math.max(10, h - top - bottom);
+
+  // скейли
+  const { ticks: yTicks, start: yStart, end: yEnd } = niceTicks(yMin, yMax, 6);
+  const yScale = v => top + (H - (v - yStart) / (yEnd - yStart) * H);
+
+  const xTicksCount = Math.min(7, arr.length);
+  const xTicks = [];
+  for (let i = 0; i < xTicksCount; i++){
+    const t = t0 + i * (t1 - t0) / (xTicksCount - 1);
+    xTicks.push(t);
+  }
+  const xScale = t => left + (t - t0) / Math.max(1, (t1 - t0)) * W;
+
+  // кольори з теми
+  const css = getComputedStyle(rootEl);
+  const gridCol  = css.getPropertyValue('--axis-grid').trim()  || 'rgba(0,0,0,.12)';
+  const textCol  = css.getPropertyValue('--axis-text').trim()  || '#444';
+  const frameCol = css.getPropertyValue('--axis-frame').trim() || 'rgba(0,0,0,.35)';
+
+  // сітка та підписи
+  ctx.save();
+  ctx.strokeStyle = gridCol;
+  ctx.fillStyle   = textCol;
+  ctx.lineWidth = 1;
+  ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+
+  yTicks.forEach(val=>{
+    const y = yScale(val);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + W, y); ctx.stroke();
+    ctx.fillText(fmtMoney(val), 6, y - 2);
+  });
+
+  xTicks.forEach((t)=>{
+    const x = xScale(t);
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + H); ctx.stroke();
+    const lbl = fmtDate(t);
+    const tw = ctx.measureText(lbl).width;
+    ctx.fillText(lbl, Math.min(Math.max(x - tw/2, left), left + W - tw), h - 8);
+  });
+
+  // рамка
+  ctx.strokeStyle = frameCol;
+  ctx.strokeRect(left, top, W, H);
+  ctx.restore();
+
+  // лінії
+// кольори з теми
+
+// ----- лінії (завжди видимі в обох темах)
+// ----- лінії (видимі в обох темах)
+const isDark =
+  document.documentElement.classList.contains('dark') ||
+  (document.body && document.body.classList.contains('dark'));
+
+// якщо є css-змінні — використай їх; інакше фолбек за темою
+const themeEl = document.querySelector('html.dark, body.dark') || document.documentElement;
+
+const S1 = css.getPropertyValue('--series-1').trim();
+const S2 = css.getPropertyValue('--series-2').trim();
+const S3 = css.getPropertyValue('--series-3').trim();
+
+const col1 = S1 || (isDark ? '#ffffff' : '#111111'); // invested
+const col2 = S2 || (isDark ? '#ffffff' : '#333333'); // realized
+const col3 = S3 || (isDark ? '#ffffff' : '#555555'); // unrealized
+
+function drawLine(series, color){
+  ctx.beginPath();
+  series.forEach((v,i)=>{
+    const x = xScale(arr[i].t);
+    const y = yScale(v);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.lineWidth = 2.25;
+  ctx.strokeStyle = color;
+  if (isDark) { ctx.shadowColor = color; ctx.shadowBlur = 2; } else { ctx.shadowBlur = 0; }
+  ctx.stroke();
+}
+
+drawLine(inv, col1);
+drawLine(rea, col2);
+drawLine(unr, col3);
+
+
+}
+
+// лог і перемальовування після кожного renderAll
+const __renderAll = renderAll;
+renderAll = function(){
+  __renderAll.apply(this, arguments);
+  try{
+    let invested=0, realized=0, unrealized=0;
+    for (const it of state.items){
+      const m = calc(it);
+      invested += m.netCost;
+      realized += m.realized;
+      if (m.unrealized!=null) unrealized += m.unrealized;
+    }
+    loadMetrics().then(drawPortfolioChart);
+    saveMetricsPoint({ t: Date.now(), invested, realized, unrealized });
+  }catch(e){ console.warn('metrics calc error', e); }
+};
