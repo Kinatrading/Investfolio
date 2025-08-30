@@ -139,7 +139,7 @@ function calc(it){
   const netCost = buysCost - sellsCostRemoved;
   const avgCost = heldQty > 0 ? netCost / heldQty : 0;
   const fee = (it.feePct!=null ? it.feePct : state.settings.feePct);
-  const realized = it.sells.reduce((s,x)=> s + x.qty * ( (x.price*(1-fee)) - (x.avgCostAtSale||0) ), 0);
+  const realized = it.sells.reduce((s,x)=> s + x.qty * ( (x.price) - (x.avgCostAtSale||0) ), 0);
   const marketPrice = state.settings.valuationMode==='buy'
     ? (it.firstBuyPrice!=null ? it.firstBuyPrice*(1-fee) : null)
     : (it.firstSellPrice!=null ? it.firstSellPrice*(1-fee) : null);
@@ -266,8 +266,7 @@ function renderAll(){
   for (const it of state.items){
     for (const b of it.lots) hrows.push({ itemId: it.id, kind:"buy", id:b.id, date:b.date, name:it.name, qty:b.qty, price:b.price, avg:"", pnl:"" });
     for (const s of it.sells) {
-      const fee = (it.feePct!=null ? it.feePct : state.settings.feePct);
-      const pnl = s.qty * ( (s.price*(1-fee)) - (s.avgCostAtSale||0) );
+      const pnl = s.qty * ( s.price - (s.avgCostAtSale||0) );
       hrows.push({ itemId: it.id, kind:"sell", id:s.id, date:s.date, name:it.name, qty:s.qty, price:s.price, avg:s.avgCostAtSale, pnl });
     }
   }
@@ -452,13 +451,11 @@ $("#addSellBtn").addEventListener("click", ()=>{
   const qty = parseInt($("#sellQty").value, 10);
   const price = parseFloat($("#sellPrice").value);
   const date = $("#opDate").value || todayISO();
-  const feeInput = parseFloat($("#itemFeePct").value);
-  if (!Number.isFinite(qty) || qty<=0 || !Number.isFinite(price)){ alert("Заповніть коректно продаж."); return; }
+if (!Number.isFinite(qty) || qty<=0 || !Number.isFinite(price)){ alert("Заповніть коректно продаж."); return; }
   const m = calc(it);
   if (m.heldQty < qty){ alert("Недостатньо кількості в портфелі."); return; }
   const avgBefore = m.avgCost;
-  const fee = Number.isFinite(feeInput) ? (feeInput/100) : (it.feePct!=null ? it.feePct : state.settings.feePct);
-  it.sells.push({ id: uid(), qty, price, date, avgCostAtSale: avgBefore, feePctAtSale: fee });
+it.sells.push({ id: uid(), qty, price, date, avgCostAtSale: avgBefore });
   save();
 });
 
