@@ -130,25 +130,42 @@ async function save(){
 }
 
 // ---- фінмодель ----
+
 function calc(it){
-  const buysQty = it.lots.reduce((s,x)=> s + (x.qty||0), 0);
-  const buysCost = it.lots.reduce((s,x)=> s + (x.qty||0) * (x.price||0), 0);
-  const sellsQty = it.sells.reduce((s,x)=> s + (x.qty||0), 0);
-  const sellsCostRemoved = it.sells.reduce((s,x)=> s + (x.qty||0) * (x.avgCostAtSale||0), 0);
+  const buys = Array.isArray(it.lots) ? it.lots : [];
+  const sells = Array.isArray(it.sells) ? it.sells : [];
+
+  const buysQty  = buys.reduce((s,x)=> s + (+x.qty||0), 0);
+  const buysCost = buys.reduce((s,x)=> s + (+x.qty||0) * (+x.price||0), 0);
+
+  const sellsQty = sells.reduce((s,x)=> s + (+x.qty||0), 0);
+  const sellsCostRemoved = sells.reduce((s,x)=> s + (+x.qty||0) * (+x.avgCostAtSale||0), 0);
+
   const heldQty = buysQty - sellsQty;
   const netCost = buysCost - sellsCostRemoved;
   const avgCost = heldQty > 0 ? netCost / heldQty : 0;
+
   const fee = (it.feePct!=null ? it.feePct : state.settings.feePct);
-  const realized = it.sells.reduce((s,x)=> s + x.qty * ( (x.price) - (x.avgCostAtSale||0) ), 0);
+
+  const realized = sells.reduce((s,x)=> s + (+x.qty||0) * ( (+x.price||0) - (+x.avgCostAtSale||0) ), 0);
+
   const marketPrice = state.settings.valuationMode==='buy'
-    ? (it.firstBuyPrice!=null ? it.firstBuyPrice*(1-fee) : null)
-    : (it.firstSellPrice!=null ? it.firstSellPrice*(1-fee) : null);
+    ? (it.firstBuyPrice!=null ? (+it.firstBuyPrice)*(1-fee) : null)
+    : (it.firstSellPrice!=null ? (+it.firstSellPrice)*(1-fee) : null);
+
   const marketValue = (marketPrice!=null) ? marketPrice * heldQty : null;
   const unrealized = (marketValue!=null) ? (marketValue - netCost) : null;
   const roi = (unrealized!=null && netCost>0) ? (unrealized/netCost*100) : null;
   const vol = volatility(it); // std dev останніх 30 цін
-  return { heldQty, avgCost, netCost, realized, marketPrice, unrealized, roi, vol };
+
+  // Реалізовані показники
+  const realizedValue = sells.reduce((s,x)=> s + (+x.qty||0) * (+x.price||0), 0);
+  const realizedQty = sellsQty;
+  const realizedAvgSell = realizedQty>0 ? (realizedValue / realizedQty) : null;
+
+  return { heldQty, avgCost, netCost, realized, marketPrice, unrealized, roi, vol, realizedQty, realizedAvgSell };
 }
+
 
 function volatility(it){
   const prices = (it.priceHistory||[]).slice(-30).map(p => (state.settings.valuationMode==='buy'? p.b : p.s)).filter(v=>Number.isFinite(v));
@@ -235,6 +252,8 @@ function renderAll(){
     totalInvested+=m.netCost; totalRealized+=m.realized; if (m.unrealized!=null) totalUnreal+=m.unrealized;
 
     const tr = document.createElement("tr");
+    
+    
     tr.innerHTML = `
       <td>${it.name}</td>
       <td>${it.tags||""}</td>
@@ -245,19 +264,26 @@ function renderAll(){
       <td>${m.unrealized!=null? fmt(m.unrealized):""}</td>
       <td>${m.roi!=null? fmt(m.roi):""}</td>
       <td>${m.vol!=null? fmt(m.vol):""}</td>
-      <td>${it.firstSellPrice!=null? fmt(it.firstSellPrice):""} ${it.firstSellQty!=null?`×${it.firstSellQty}`:""}</td>
-      <td>${it.firstBuyPrice!=null? fmt(it.firstBuyPrice):""} ${it.firstBuyQty!=null?`×${it.firstBuyQty}`:""}</td>
+      <td>${it.firstSellPrice!=null? fmt(it.firstSellPrice):""} ${it.firstSellQty!=null?('×'+it.firstSellQty):""}</td>
+      <td>${it.firstBuyPrice!=null? fmt(it.firstBuyPrice):""} ${it.firstBuyQty!=null?('×'+it.firstBuyQty):""}</td>
       <td><input class="alertBuy" data-id="${it.id}" type="number" step="0.01" value="${it.alertBuyAtOrBelow??""}" style="width:8em"/></td>
       <td><input class="alertSell" data-id="${it.id}" type="number" step="0.01" value="${it.alertSellAtOrAbove??""}" style="width:9em"/></td>
-      <td>${it.itemUrl ? `<a target="_blank" href="${it.itemUrl}">open</a>` : ""} <button class="action-btn" data-edit-itemurl="${it.id}">✎</button></td>
-      <td>${it.apiUrl ? `<a target="_blank" href="${it.apiUrl}">open</a>` : ""} <button class="action-btn" data-edit-apiurl="${it.id}">✎</button></td>
+      <td title="Середня ціна по всіх продажах">${(m.realizedQty>0 && m.realizedAvgSell!=null)? fmt(m.realizedAvgSell):""}</td>
+      <td title="Загальна кількість проданих одиниць">${m.realizedQty>0? m.realizedQty:""}</td>
       <td>${alertStatus(it)}</td>
       <td>${it.lastFetchedAt || it.createdAt || ""}</td>
       <td><button class="action-btn" data-del-item="${it.id}">🗑️</button></td>
-    `;
+    `
     tbody.appendChild(tr);
   }
-  summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL: ₴${fmt(totalRealized)} • Unrealized PnL: ₴${fmt(totalUnreal)}`;
+    // агреговані показники реалізації для підсумку
+  let aggQty = 0, aggValue = 0;
+  for (const it of rows){
+    const m2 = calc(it);
+    if (m2.realizedQty){ aggQty += m2.realizedQty; aggValue += m2.realizedQty * (m2.realizedAvgSell||0); }
+  }
+  const aggAvg = aggQty>0 ? (aggValue/aggQty) : null;
+summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL: ₴${fmt(totalRealized)} • Реаліз. к-сть: ${aggQty} • Реаліз. сер.: ${aggAvg!=null? '₴'+fmt(aggAvg):''} • Unrealized PnL: ₴${fmt(totalUnreal)}`;
   hdrUnreal.textContent = `Unrealized ₴${fmt(totalUnreal)}`;
 
   // історія
