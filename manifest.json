@@ -18,7 +18,8 @@
   },
   "host_permissions": [
     "<all_urls>",
-    "https://steamcommunity.com/market/*"
+    "https://steamcommunity.com/market/*",
+    "https://api.telegram.org/*"
   ],
   "icons": {
     "128": "icon128.png"

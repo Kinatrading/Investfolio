@@ -73,7 +73,7 @@ function bindSorting(){
 const d_alarm = $("#d_alarm"), d_alarm_at=$("#d_alarm_at"), d_batch=$("#d_batch"), d_stats=$("#d_stats"), d_log=$("#diagLog");
 
 // ---- state ----
-let state = { items: [], settings: { feePct: 0.15, autoRefreshMinutes: 0, batchDelayMs:200, valuationMode:'sell', theme:'light' } };
+let state = { items: [], settings: { feePct: 0.15, autoRefreshMinutes: 0, batchDelayMs:200, valuationMode:'sell', telegramBotToken:'', telegramChatId:'', telegramParseMode:'MarkdownV2', theme:'light' } };
 let depthCache = { sell: [], buy: [] };
 
 // ---- utils ----
@@ -255,8 +255,8 @@ function renderAll(){
     
     
     tr.innerHTML = `
-      <td>${it.name}</td>
-      <td>${it.tags||""}</td>
+      <td>${it.itemUrl ? `<a href="${it.itemUrl}" target="_blank" rel="noopener noreferrer">${it.name}</a>` : it.name}</td>
+	  <td>${it.tags||""}</td>
       <td>${m.heldQty}</td>
       <td>${fmt(m.avgCost)}</td>
       <td>${fmt(m.netCost)}</td>
@@ -283,7 +283,7 @@ function renderAll(){
     if (m2.realizedQty){ aggQty += m2.realizedQty; aggValue += m2.realizedQty * (m2.realizedAvgSell||0); }
   }
   const aggAvg = aggQty>0 ? (aggValue/aggQty) : null;
-summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL: ₴${fmt(totalRealized)} • Реаліз. к-сть: ${aggQty} • Реаліз. сер.: ${aggAvg!=null? '₴'+fmt(aggAvg):''} • Unrealized PnL: ₴${fmt(totalUnreal)}`;
+summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL: ₴${fmt(totalRealized)}  • Unrealized PnL: ₴${fmt(totalUnreal)}`;
   hdrUnreal.textContent = `Unrealized ₴${fmt(totalUnreal)}`;
 
   // історія
@@ -430,7 +430,14 @@ function parseTopN(htmlStr, n){
 }
 
 // ---- налаштування ----
-async function saveSettings(){ await chrome.storage.local.set({ settings: state.settings }); }
+async function saveSettings(){
+  // pick up current inputs
+  const tokEl = document.querySelector("#tgToken");
+  const chatEl = document.querySelector("#tgChatId");
+  if (tokEl) state.settings.telegramBotToken = tokEl.value.trim();
+  if (chatEl) state.settings.telegramChatId = chatEl.value.trim();
+  await chrome.storage.local.set({ settings: state.settings });
+}
 
 // ---- події UI ----
 $("#saveSettingsBtn").addEventListener("click", async ()=>{
@@ -524,7 +531,8 @@ async function fetchOne(it){
           return { price, qty };
         }
       }
-    }catch(e){}
+    
+    } catch(e) {}
     return { price:null, qty:null };
   }
 
@@ -886,3 +894,77 @@ renderAll = function(){
     saveMetricsPoint({ t: Date.now(), invested, realized, unrealized });
   }catch(e){ console.warn('metrics calc error', e); }
 };
+
+
+// ---- Telegram buttons ----
+document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=>{
+  const fmt = (n)=> (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+  let totalInvested = 0, totalUnreal = 0;
+  const lines = [];
+  for (const it of (state.items||[])){
+    const m = calc(it);
+    const invested = m?.netCost ?? 0;
+    const unreal = m?.unrealized ?? 0;
+    totalInvested += invested;
+    totalUnreal += unreal;
+    const nm = tgEscapeHtml(it?.name || "");
+    lines.push(`• <b>${nm}</b> — нетто ${fmt(invested)}, PnL ${fmt(unreal)}`);
+  }
+  const pnl = totalUnreal;
+  const roi = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
+
+  // Header
+  let parts = [];
+  parts.push("<b>📊 Steam Invest Ultra</b>");
+  parts.push(`<b>Позицій:</b> ${state.items?.length || 0}`);
+  parts.push(`<b>Інвестовано:</b> ${fmt(totalInvested)}`);
+  parts.push(`<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roi)}%`);
+  parts.push("");
+  parts.push(lines.join("\n"));
+  const text = parts.join("\n");
+
+  // If too long, chunk into multiple messages
+  const chunks = [];
+  const maxLen = 3500;
+  for (let i=0, s=text; s.length>0; i++){
+    chunks.push(s.slice(0, maxLen));
+    s = s.slice(maxLen);
+  }
+  let ok = true, lastErr = "";
+  for (const chunk of chunks){
+    const res = await chrome.runtime.sendMessage({ type: 'SEND_TELEGRAM', payload: { text: chunk, parseMode: 'HTML' } });
+    if (!res?.ok){ ok = false; lastErr = res?.error || "Telegram error"; break; }
+  }
+  alert(ok ? "Відправлено в Telegram" : ("Помилка Telegram: " + lastErr));
+});
+document.getElementById("sendTgCurrentBtn")?.addEventListener("click", async ()=>{
+  const name = document.getElementById("name")?.value?.trim() || '';
+  const qty = parseFloat(document.getElementById("amount")?.value||"1");
+  const price = parseFloat(document.getElementById("price")?.value||"0");
+  const buyAlert = parseFloat(document.getElementById("alertBuy")?.value||"");
+  const sellAlert = parseFloat(document.getElementById("alertSell")?.value||"");
+  const apiUrlEl = document.getElementById("apiUrl");
+  const api = apiUrlEl ? apiUrlEl.value : '';
+  const now = new Date().toISOString().slice(0,19).replace('T',' ');
+  let lines = [];
+  lines.push(`*Предмет:* ${name.replaceAll('*','⋆')}`);
+  lines.push(`Кількість: *${isNaN(qty)?0:qty}*  Ціна: *${isNaN(price)?0:price.toFixed(2)}*`);
+  if (!isNaN(buyAlert)) lines.push(`Alert Buy: *${buyAlert}*`);
+  if (!isNaN(sellAlert)) lines.push(`Alert Sell: *${sellAlert}*`);
+  if (api) lines.push(`[API](${api.replaceAll(')','%29')})`);
+  lines.push(`Час: ${now}`);
+  const text = lines.join('\n');
+  const res = await chrome.runtime.sendMessage({ type: 'SEND_TELEGRAM', payload: { text, parseMode: 'HTML' } });
+  alert(res?.ok ? "Надіслано в Telegram" : ("Помилка Telegram: " + (res?.error||'')));
+});
+
+
+function tgEscapeHtml(s){
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

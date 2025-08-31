@@ -13,7 +13,7 @@
     <input id="search" placeholder="Пошук/теги…" />
     <button id="scanAllBtn" title="Послідовно оновити всі API">Сканувати всі API</button>
     <button id="openAllBtn" title="Відкрити всі API у вкладках">Відкрити всі API</button>
-    <button id="exportJsonBtn">Експорт JSON</button>
+    <button id="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram">В Telegram</button>
     <label class="fileLabel">Імпорт JSON<input type="file" id="importFile" accept="application/json" hidden/></label>
     <button id="clearBtn" class="danger">Очистити</button>
     <button id="themeBtn" title="Тема">🌓</button>
@@ -26,6 +26,15 @@
         <label>Комісія Steam (деф.), %</label>
         <input id="feePct" type="number" min="0" max="50" step="0.1" />
       </div>
+      <div>
+        <label>Telegram Bot Token</label>
+        <input id="tgToken" type="text" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
+      </div>
+      <div>
+        <label>Telegram Chat ID</label>
+        <input id="tgChatId" type="text" placeholder="Напр., 123456789 або @channelname" />
+      </div>
+
       <div>
         <label>Авто-оновлення, хв (0=вимк)</label>
         <input id="autoRefreshMinutes" type="number" min="0" step="1" />
@@ -48,7 +57,7 @@
   </section>
 
   <section class="card">
-    <h2>Додати предмет</h2>
+    <h2>Додати предмет</h2><button id="sendTgCurrentBtn" class="right" title="Надіслати цей предмет у Telegram">В Telegram</button>
     <div class="grid four">
       <div>
         <label>Назва</label>

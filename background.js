@@ -1,5 +1,17 @@
 
 // ===== helpers (no async/await used) =====
+
+// ---- Telegram HTML helpers ----
+function tgEscapeHtml(s){
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function unescapeHtmlString(s){
   if (!s) return "";
   return String(s)
@@ -544,4 +556,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true; // async
   }
+});
+
+
+
+// ===== Telegram bridge =====
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  (async () => {
+    try{
+      if (!msg || msg.type !== 'SEND_TELEGRAM') return;
+      const { text, parseMode } = msg.payload || {};
+      const st = await chrome.storage.local.get(["settings"]);
+      const settings = st.settings || {};
+      const token = settings.telegramBotToken;
+      const chatId = settings.telegramChatId;
+      const mode = parseMode || settings.telegramParseMode || 'HTML';
+      if (!token || !chatId){
+        sendResponse({ ok:false, error: "Немає токена або chat_id у налаштуваннях." });
+        return;
+      }
+      const url = `https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`;
+      const body = {
+        chat_id: String(chatId),
+        text: String(text || '').slice(0, 4000), // TG hard limit 4096
+        parse_mode: mode
+      };
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await resp.json();
+      if (!data.ok){
+        sendResponse({ ok:false, error: data.description || 'Telegram API error', data });
+      } else {
+        sendResponse({ ok:true, data });
+      }
+    }catch(e){
+      sendResponse({ ok:false, error: String(e) });
+    }
+  })();
+  return true; // async
 });
