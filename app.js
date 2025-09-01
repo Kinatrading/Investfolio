@@ -900,66 +900,57 @@ renderAll = function(){
 
 // ---- Telegram buttons ----
 document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=>{
-  const fmt = (n)=> (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+  const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+
   let totalInvested = 0, totalUnreal = 0;
   const lines = [];
-  for (const it of (state.items||[])){
-    const m = calc(it);
-    const invested = m?.netCost ?? 0;
-    const unreal = m?.unrealized ?? 0;
+
+  for (const it of (state.items || [])) {
+    const mm = calc(it);
+    const invested = mm?.netCost ?? 0;
+    const unreal   = mm?.unrealized ?? 0;
     totalInvested += invested;
-    totalUnreal += unreal;
+    totalUnreal   += unreal;
     const nm = tgEscapeHtml(it?.name || "");
+    // У КОЖНОМУ РЯДКУ теги збалансовані (відкрили/закрили у межах рядка)
     lines.push(`• <b>${nm}</b> — нетто ${fmt(invested)}, PnL ${fmt(unreal)}`);
   }
+
   const pnl = totalUnreal;
   const roi = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
 
-  // Header
-  let parts = [];
-  parts.push("<b>📊 Steam Invest Ultra</b>");
-  parts.push(`<b>Позицій:</b> ${state.items?.length || 0}`);
-  parts.push(`<b>Інвестовано:</b> ${fmt(totalInvested)}`);
-  parts.push(`<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roi)}%`);
-  parts.push("");
-  parts.push(lines.join("\n"));
-  const text = parts.join("\n");
+  const header = [
+    "<b>📊 Steam Invest Ultra</b>",
+    `<b>Позицій:</b> ${state.items?.length || 0}`,
+    `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
+    `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roi)}%`,
+    ""
+  ];
 
-  // If too long, chunk into multiple messages
-  const chunks = [];
-  const maxLen = 3500;
-  for (let i=0, s=text; s.length>0; i++){
-    chunks.push(s.slice(0, maxLen));
-    s = s.slice(maxLen);
-  }
+  // Ріжемо ПО РЯДКАХ, а не по символах — HTML не ламаємо
+  const maxLen = 3500;     // запас до ліміту Telegram (~4096)
+  let buf = header.join("\n");
   let ok = true, lastErr = "";
-  for (const chunk of chunks){
-    const res = await chrome.runtime.sendMessage({ type: 'SEND_TELEGRAM', payload: { text: chunk, parseMode: 'HTML' } });
-    if (!res?.ok){ ok = false; lastErr = res?.error || "Telegram error"; break; }
+
+  async function sendChunk(text){
+    const res = await chrome.runtime.sendMessage({
+      type: 'SEND_TELEGRAM',
+      payload: { text, parseMode: 'HTML' }
+    });
+    if (!res?.ok){ ok = false; lastErr = res?.error || "Telegram error"; }
   }
+
+  for (const line of lines){
+    if ((buf + "\n" + line).length > maxLen){
+      await sendChunk(buf);
+      buf = "";
+    }
+    buf += (buf ? "\n" : "") + line;
+  }
+  if (buf) await sendChunk(buf);
+
   alert(ok ? "Відправлено в Telegram" : ("Помилка Telegram: " + lastErr));
 });
-document.getElementById("sendTgCurrentBtn")?.addEventListener("click", async ()=>{
-  const name = document.getElementById("name")?.value?.trim() || '';
-  const qty = parseFloat(document.getElementById("amount")?.value||"1");
-  const price = parseFloat(document.getElementById("price")?.value||"0");
-  const buyAlert = parseFloat(document.getElementById("alertBuy")?.value||"");
-  const sellAlert = parseFloat(document.getElementById("alertSell")?.value||"");
-  const apiUrlEl = document.getElementById("apiUrl");
-  const api = apiUrlEl ? apiUrlEl.value : '';
-  const now = new Date().toISOString().slice(0,19).replace('T',' ');
-  let lines = [];
-  lines.push(`*Предмет:* ${name.replaceAll('*','⋆')}`);
-  lines.push(`Кількість: *${isNaN(qty)?0:qty}*  Ціна: *${isNaN(price)?0:price.toFixed(2)}*`);
-  if (!isNaN(buyAlert)) lines.push(`Alert Buy: *${buyAlert}*`);
-  if (!isNaN(sellAlert)) lines.push(`Alert Sell: *${sellAlert}*`);
-  if (api) lines.push(`[API](${api.replaceAll(')','%29')})`);
-  lines.push(`Час: ${now}`);
-  const text = lines.join('\n');
-  const res = await chrome.runtime.sendMessage({ type: 'SEND_TELEGRAM', payload: { text, parseMode: 'HTML' } });
-  alert(res?.ok ? "Надіслано в Telegram" : ("Помилка Telegram: " + (res?.error||'')));
-});
-
 
 
 // Шорткат "/" → фокус у пошук, Esc → очистити
