@@ -10,7 +10,7 @@
   <header class="bar">
     <h1>Steam Invest Ultra (₴) <span id="hdrUnreal" class="badge big"></span></h1>
     <div class="spacer"></div>
-    <input id="search" placeholder="Пошук/теги…" />
+    
     <button id="scanAllBtn" title="Послідовно оновити всі API">Сканувати всі API</button>
     <button id="openAllBtn" title="Відкрити всі API у вкладках">Відкрити всі API</button>
     <button id="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram">В Telegram</button>
@@ -153,10 +153,16 @@
   </section>
 
   <section class="card">
+  
     <h2>Портфель</h2>
-    <div class="table-wrap">
+  <div class="search-wrap">
+    <input id="search" type="search"
+           placeholder="Пошук за назвою або тегами… (натисни /)" />
+  </div>
+
+    <div class="table-wrap">	
       <table id="tbl">
-        <thead>
+
 <thead>
   <tr>
     <th class="sortable" data-sort="name">Назва <span class="arrow"></span></th>

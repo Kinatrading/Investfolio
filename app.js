@@ -439,6 +439,8 @@ async function saveSettings(){
   await chrome.storage.local.set({ settings: state.settings });
 }
 
+
+function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 // ---- події UI ----
 $("#saveSettingsBtn").addEventListener("click", async ()=>{
   state.settings.feePct = Math.max(0, parseFloat($("#feePct").value||"0")/100);
@@ -625,7 +627,7 @@ itemSelect.addEventListener("change", ()=>{
 });
 
 $("#roiTarget").addEventListener("keydown", (e)=>{ if(e.key==='Enter') $("#calcRoiBtn").click(); });
-$("#search").addEventListener("input", renderAll);
+$("#search").addEventListener("input", debounce(()=>{ renderAll(); }, 150));
 
 $("#calcRoiBtn").addEventListener("click", ()=>{
   const it = state.items.find(x=>x.id===itemSelect.value);
@@ -959,6 +961,18 @@ document.getElementById("sendTgCurrentBtn")?.addEventListener("click", async ()=
 });
 
 
+
+// Шорткат "/" → фокус у пошук, Esc → очистити
+function focusSearchHotkey(ev){
+  const tag = (document.activeElement?.tagName||"").toLowerCase();
+  if (ev.key === "/" && tag !== "input" && tag !== "textarea"){
+    ev.preventDefault(); const el = $("#search"); if (el){ el.focus(); el.select(); }
+  }
+  if (ev.key === "Escape"){
+    const el = $("#search"); if (el && el.value){ el.value=""; renderAll(); }
+  }
+}
+window.addEventListener("keydown", focusSearchHotkey);
 function tgEscapeHtml(s){
   if (s == null) return "";
   return String(s)
@@ -968,3 +982,66 @@ function tgEscapeHtml(s){
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+
+// ===== Live search (DOM filter) =====
+(function setupLiveSearch(){
+  // 1) інпут: візьмемо існуючий #search; якщо його немає — створимо над таблицею
+  let search = document.querySelector("#search");
+  const table = document.querySelector("#tbl, #portfolioTable") || document.querySelector("table");
+  if (!table) return; // немає таблиці — нічого робити
+  const tbody = table.tBodies && table.tBodies[0] ? table.tBodies[0] : table.querySelector("tbody");
+
+  if (!search){
+    const wrap = document.createElement("div");
+    wrap.style.margin = ".5rem 0";
+    search = document.createElement("input");
+    search.id = "search";
+    search.type = "search";
+    search.placeholder = "Пошук за назвою або тегами… (натисни /)";
+    search.style.cssText = "width:100%;max-width:420px;padding:.5rem .75rem;border-radius:8px;";
+    wrap.appendChild(search);
+    table.parentNode.insertBefore(wrap, table);
+  }
+
+  // 2) функція фільтрації по тексту (назва + теги)
+  function filterRows(q){
+    if (!tbody) return;
+    const needle = (q||"").trim().toLowerCase();
+    const rows = Array.from(tbody.rows);
+    let shown = 0;
+    for (const tr of rows){
+      // 0-й стовпець — Назва, 1-й — Теги (підлаштуй, якщо інші індекси)
+      const name = (tr.cells[0]?.textContent || "").toLowerCase();
+      const tags = (tr.cells[1]?.textContent || "").toLowerCase();
+      const ok = !needle || name.includes(needle) || tags.includes(needle);
+      tr.style.display = ok ? "" : "none";
+      if (ok) shown++;
+    }
+    // опційно — виводити кількість знайдених
+    // console.log("found:", shown);
+  }
+
+  // 3) debounce, обробники і хоткеї
+  let t;
+  search.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(() => filterRows(search.value), 120);
+  });
+
+  // шорткати: "/" — фокус, "Esc" — очистити
+  window.addEventListener("keydown", (ev)=>{
+    const tag = (document.activeElement?.tagName||"").toLowerCase();
+    if (ev.key === "/" && tag !== "input" && tag !== "textarea"){
+      ev.preventDefault();
+      search.focus(); search.select();
+    }
+    if (ev.key === "Escape" && document.activeElement === search){
+      search.value = "";
+      filterRows("");
+    }
+  });
+
+  // 4) первинний прогін (якщо в інпуті щось лишилось)
+  filterRows(search.value);
+})();

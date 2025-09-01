@@ -184,3 +184,28 @@ th.sortable .arrow { margin-left: .25rem; opacity: .7; }
   max-width: 100%;
   box-sizing: border-box;
 }
+
+
+/* зробити шапку таблиці “липкою”, щоби не губилась при скролі */
+#tbl thead th{
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-bg, #0f172a); /* або твій фон */
+}
+
+/* поле пошуку */
+#search{
+  width: 100%;
+  max-width: 420px;
+  padding: .5rem .75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: inherit;
+  outline: none;
+}
+#search:focus{
+  border-color: rgba(88,166,255,.8);
+  box-shadow: 0 0 0 2px rgba(88,166,255,.2);
+}
