@@ -205,6 +205,22 @@ function renderSettings(){
   $("#valuationMode").value = state.settings.valuationMode||'sell';
 }
 
+
+
+// ---- Aggregated Realized PnL bucket (persists even if items are deleted) ----
+async function loadRealizedTotal(){
+  const st = await chrome.storage.local.get('realizedTotal');
+  return st && st.realizedTotal ? st.realizedTotal : { pnl: 0, qty: 0, value: 0, updatedAt: 0 };
+}
+async function addToRealizedTotal(delta){
+  const cur = await loadRealizedTotal();
+  cur.pnl   += Number(delta?.pnl   || 0);
+  cur.qty   += Number(delta?.qty   || 0);
+  cur.value += Number(delta?.value || 0);
+  cur.updatedAt = Date.now();
+  await chrome.storage.local.set({ realizedTotal: cur });
+  return cur;
+}
 function portfolioTotals(){
   let totalInvested=0, totalRealized=0, totalUnreal=0;
   for (const it of state.items){
@@ -283,7 +299,15 @@ function renderAll(){
     if (m2.realizedQty){ aggQty += m2.realizedQty; aggValue += m2.realizedQty * (m2.realizedAvgSell||0); }
   }
   const aggAvg = aggQty>0 ? (aggValue/aggQty) : null;
-summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL: ₴${fmt(totalRealized)}  • Unrealized PnL: ₴${fmt(totalUnreal)}`;
+(async ()=>{
+  const totals = portfolioTotals();
+  const bucket = await loadRealizedTotal();
+  const totalInvested = totals.totalInvested;
+  const totalUnreal   = totals.totalUnreal;
+  const totalRealizedAll = totals.totalRealized + (bucket.pnl||0);
+  const line = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL (вкл. архів): ₴${fmt(totalRealizedAll)}  • Unrealized PnL: ₴${fmt(totalUnreal)}`;
+  summaryEl.textContent = line;
+})();
   hdrUnreal.textContent = `Unrealized ₴${fmt(totalUnreal)}`;
 
   // історія
@@ -316,10 +340,20 @@ summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкла�
   }
 
   // хендлери
-  tbody.onclick = (e)=>{
+  tbody.onclick = async (e) => {
     const t = e.target;
     if (t.dataset.delItem){
       if (confirm("Видалити позицію разом з історією?")){
+        const it = state.items.find(x=>x.id===t.dataset.delItem);
+        if (it){
+          const m = calc(it) || {};
+          // Add realized PnL of this item to persistent bucket before deletion
+          await addToRealizedTotal({
+            pnl:   Number(m.realized||0),
+            qty:   Number(m.realizedQty||0),
+            value: Number((m.realizedQty||0) * (m.realizedAvgSell||0) || 0)
+          });
+        }
         state.items = state.items.filter(x=>x.id!==t.dataset.delItem);
         save();
       }
@@ -366,6 +400,7 @@ summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкла�
       if (!it) return;
       if (kind==="buy"){
         const rec = it.lots.find(x=>x.id===id);
+        if (!rec){ alert("Запис не знайдено"); return; }
         const qty = prompt("К-сть:", rec.qty);  if (qty===null) return;
         const price = prompt("Ціна (грн):", rec.price); if (price===null) return;
         const date = prompt("Дата (YYYY-MM-DD):", rec.date||todayISO()); if (date===null) return;
@@ -375,6 +410,7 @@ summaryEl.textContent = `Позицій: ${rows.length} • Нетто вкла�
         save();
       } else {
         const rec = it.sells.find(x=>x.id===id);
+        if (!rec){ alert("Запис не знайдено"); return; }
         const qty = prompt("К-сть:", rec.qty); if (qty===null) return;
         const price = prompt("Ціна (грн):", rec.price); if (price===null) return;
         const avg = prompt("Avg cost @ sale:", rec.avgCostAtSale); if (avg===null) return;
@@ -901,35 +937,69 @@ renderAll = function(){
 // ---- Telegram buttons ----
 document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=>{
   const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+  const esc = s => String(s ?? "")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 
-  let totalInvested = 0, totalUnreal = 0;
-  const lines = [];
+  // Пороги
+  const SELL_ROI = 25;   // > 25% = продавати
+  const BUY_ROI  = -25;  // < -25% = докупити
+
+  let totalInvested = 0, totalUnreal = 0, totalQty = 0;
+
+  const sell = [], buy = [], mid = [];
 
   for (const it of (state.items || [])) {
-    const mm = calc(it);
-    const invested = mm?.netCost ?? 0;
-    const unreal   = mm?.unrealized ?? 0;
+    const m = calc(it) || {};
+    const invested = m.netCost ?? 0;
+    const unreal   = m.unrealized ?? 0;
+    const qty      = m.heldQty ?? it.amount ?? it.qty ?? 0;
+
+    // ❗ пропускаємо записи з qty == 0
+    if (!qty) continue;
+
+    const roi = invested > 0 ? (unreal / invested * 100) : 0;
+
     totalInvested += invested;
     totalUnreal   += unreal;
-    const nm = tgEscapeHtml(it?.name || "");
-    // У КОЖНОМУ РЯДКУ теги збалансовані (відкрили/закрили у межах рядка)
-    lines.push(`• <b>${nm}</b> — нетто ${fmt(invested)}, PnL ${fmt(unreal)}`);
+    totalQty      += (Number(qty) || 0);
+
+    const nm = esc(it?.name || "");
+    const line = `• <b>${nm}</b> — к-сть ${qty}, нетто ${fmt(invested)}, PnL ${fmt(unreal)}, ROI ${fmt(roi)}%`;
+
+    if (roi > SELL_ROI)      sell.push({ roi, line });
+    else if (roi < BUY_ROI)  buy.push({ roi, line });
+    else                     mid.push({ roi, line });
   }
 
-  const pnl = totalUnreal;
-  const roi = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
+  // Сортування
+  sell.sort((a,b)=> b.roi - a.roi);
+  buy .sort((a,b)=> a.roi - b.roi);
+  mid .sort((a,b)=> Math.abs(b.roi) - Math.abs(a.roi));
 
-  const header = [
+  const pnl = totalUnreal;
+  const roiTot = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
+
+  const lines = [
     "<b>📊 Steam Invest Ultra</b>",
     `<b>Позицій:</b> ${state.items?.length || 0}`,
+    `<b>К-сть (шт):</b> ${totalQty}`,
     `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
-    `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roi)}%`,
-    ""
+    `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
+    "",
+    `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
+    ...sell.map(x=>x.line),
+    "",
+    `<b>🤔 Під питанням докупити (ROI &lt; -${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
+    ...buy.map(x=>x.line),
+    "",
+    `<b>📎 Решта (від −${Math.abs(BUY_ROI)}% до +${SELL_ROI}%):</b> ${mid.length ? "" : "—"}`,
+    ...mid.map(x=>x.line),
   ];
 
-  // Ріжемо ПО РЯДКАХ, а не по символах — HTML не ламаємо
-  const maxLen = 3500;     // запас до ліміту Telegram (~4096)
-  let buf = header.join("\n");
+  // Відправка шматками
+  const maxLen = 3500;
+  let buf = "";
   let ok = true, lastErr = "";
 
   async function sendChunk(text){
@@ -941,16 +1011,20 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
   }
 
   for (const line of lines){
-    if ((buf + "\n" + line).length > maxLen){
-      await sendChunk(buf);
-      buf = "";
+    const candidate = buf ? (buf + "\n" + line) : line;
+    if (candidate.length > maxLen){
+      if (buf) await sendChunk(buf);
+      buf = line;
+    } else {
+      buf = candidate;
     }
-    buf += (buf ? "\n" : "") + line;
   }
   if (buf) await sendChunk(buf);
 
   alert(ok ? "Відправлено в Telegram" : ("Помилка Telegram: " + lastErr));
 });
+
+
 
 
 // Шорткат "/" → фокус у пошук, Esc → очистити
