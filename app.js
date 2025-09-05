@@ -166,7 +166,6 @@ function calc(it){
   return { heldQty, avgCost, netCost, realized, marketPrice, unrealized, roi, vol, realizedQty, realizedAvgSell };
 }
 
-
 function volatility(it){
   const prices = (it.priceHistory||[]).slice(-30).map(p => (state.settings.valuationMode==='buy'? p.b : p.s)).filter(v=>Number.isFinite(v));
   if (prices.length<2) return null;
@@ -204,8 +203,6 @@ function renderSettings(){
   $("#batchDelayMs").value = String(state.settings.batchDelayMs||200);
   $("#valuationMode").value = state.settings.valuationMode||'sell';
 }
-
-
 
 // ---- Aggregated Realized PnL bucket (persists even if items are deleted) ----
 async function loadRealizedTotal(){
@@ -268,11 +265,9 @@ function renderAll(){
     totalInvested+=m.netCost; totalRealized+=m.realized; if (m.unrealized!=null) totalUnreal+=m.unrealized;
 
     const tr = document.createElement("tr");
-    
-    
     tr.innerHTML = `
       <td>${it.itemUrl ? `<a href="${it.itemUrl}" target="_blank" rel="noopener noreferrer">${it.name}</a>` : it.name}</td>
-	  <td>${it.tags||""}</td>
+      <td>${it.tags||""}</td>
       <td>${m.heldQty}</td>
       <td>${fmt(m.avgCost)}</td>
       <td>${fmt(m.netCost)}</td>
@@ -289,25 +284,28 @@ function renderAll(){
       <td>${alertStatus(it)}</td>
       <td>${it.lastFetchedAt || it.createdAt || ""}</td>
       <td><button class="action-btn" data-del-item="${it.id}">🗑️</button></td>
-    `
+    `;
     tbody.appendChild(tr);
   }
-    // агреговані показники реалізації для підсумку
+
+  // агреговані показники реалізації для підсумку
   let aggQty = 0, aggValue = 0;
   for (const it of rows){
     const m2 = calc(it);
     if (m2.realizedQty){ aggQty += m2.realizedQty; aggValue += m2.realizedQty * (m2.realizedAvgSell||0); }
   }
   const aggAvg = aggQty>0 ? (aggValue/aggQty) : null;
-(async ()=>{
-  const totals = portfolioTotals();
-  const bucket = await loadRealizedTotal();
-  const totalInvested = totals.totalInvested;
-  const totalUnreal   = totals.totalUnreal;
-  const totalRealizedAll = totals.totalRealized + (bucket.pnl||0);
-  const line = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL (вкл. архів): ₴${fmt(totalRealizedAll)}  • Unrealized PnL: ₴${fmt(totalUnreal)}`;
-  summaryEl.textContent = line;
-})();
+
+  (async ()=>{
+    const totals = portfolioTotals();
+    const bucket = await loadRealizedTotal();
+    const totalInvested = totals.totalInvested;
+    const totalUnreal   = totals.totalUnreal;
+    const totalRealizedAll = totals.totalRealized + (bucket.pnl||0);
+    const line = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL (вкл. архів): ₴${fmt(totalRealizedAll)}  • Unrealized PnL: ₴${fmt(totalUnreal)}`;
+    summaryEl.textContent = line;
+  })();
+
   hdrUnreal.textContent = `Unrealized ₴${fmt(totalUnreal)}`;
 
   // історія
@@ -467,14 +465,12 @@ function parseTopN(htmlStr, n){
 
 // ---- налаштування ----
 async function saveSettings(){
-  // pick up current inputs
   const tokEl = document.querySelector("#tgToken");
   const chatEl = document.querySelector("#tgChatId");
   if (tokEl) state.settings.telegramBotToken = tokEl.value.trim();
   if (chatEl) state.settings.telegramChatId = chatEl.value.trim();
   await chrome.storage.local.set({ settings: state.settings });
 }
-
 
 function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 // ---- події UI ----
@@ -499,7 +495,6 @@ $("#createItemBtn").addEventListener("click", ()=>{
   const itemUrl = $("#itemUrl").value.trim();
   const apiUrl = $("#apiUrl").value.trim();
   if (!name){ alert("Вкажіть назву."); return; }
-  // додано createdAt: щоб дата з'являлась одразу
   state.items.push({ id: uid(), name, tags, itemUrl, apiUrl, createdAt: todayISO(), lots: [], sells: [], firstSellPrice:null, firstSellQty:null, firstBuyPrice:null, firstBuyQty:null, lastFetchedAt:null, priceHistory:[] });
   $("#name").value = ""; $("#tags").value=""; $("#itemUrl").value=""; $("#apiUrl").value="";
   save();
@@ -522,11 +517,11 @@ $("#addSellBtn").addEventListener("click", ()=>{
   const qty = parseInt($("#sellQty").value, 10);
   const price = parseFloat($("#sellPrice").value);
   const date = $("#opDate").value || todayISO();
-if (!Number.isFinite(qty) || qty<=0 || !Number.isFinite(price)){ alert("Заповніть коректно продаж."); return; }
+  if (!Number.isFinite(qty) || qty<=0 || !Number.isFinite(price)){ alert("Заповніть коректно продаж."); return; }
   const m = calc(it);
   if (m.heldQty < qty){ alert("Недостатньо кількості в портфелі."); return; }
   const avgBefore = m.avgCost;
-it.sells.push({ id: uid(), qty, price, date, avgCostAtSale: avgBefore });
+  it.sells.push({ id: uid(), qty, price, date, avgCostAtSale: avgBefore });
   save();
 });
 
@@ -569,7 +564,6 @@ async function fetchOne(it){
           return { price, qty };
         }
       }
-    
     } catch(e) {}
     return { price:null, qty:null };
   }
@@ -741,8 +735,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // ======== Динаміка портфелю (timeseries) ========
-
-// зберігання таймсеріалу
 const pnlChart = document.getElementById('pnlChart');
 async function loadMetrics(){
   return new Promise(resolve => {
@@ -766,8 +758,6 @@ async function saveMetricsPoint(point){
     }
   }catch(e){ console.warn('saveMetricsPoint', e); }
 }
-
-// «красиві» тики по Y та форматери
 function niceTicks(min, max, maxTicks = 6){
   const span = max - min || 1;
   const step0 = span / Math.max(1, maxTicks - 1);
@@ -783,13 +773,12 @@ function niceTicks(min, max, maxTicks = 6){
 const fmtMoney = v => `₴${v.toFixed(2)}`;
 const fmtDate = t => new Date(t).toLocaleDateString([], { day:'2-digit', month:'short' });
 
-// респонсивний канвас (на всю ширину)
 let __pnlArrCache = null;
 function resizePnlCanvas(cvs){
   const dpr = window.devicePixelRatio || 1;
   const cssW = Math.floor(cvs.clientWidth || cvs.getBoundingClientRect().width || 540);
   let cssH = Math.floor(cvs.clientHeight || cvs.getBoundingClientRect().height || 0);
-  if (cssH < 40) { cssH = 260; cvs.style.height = cssH+'px'; } // дефолт
+  if (cssH < 40) { cssH = 260; cvs.style.height = cssH+'px'; }
   const need = cvs.width !== cssW * dpr || cvs.height !== cssH * dpr;
   if (need){
     const ctx = cvs.getContext('2d');
@@ -804,8 +793,6 @@ window.addEventListener('resize', ()=>{
   resizePnlCanvas(pnlChart);
   if (__pnlArrCache) drawPortfolioChart(__pnlArrCache);
 });
-
-// основний малюнок timeseries
 function drawPortfolioChart(arr){
   const cvs = document.getElementById('pnlChart');
   if (!cvs || !cvs.getContext) return;
@@ -827,12 +814,10 @@ function drawPortfolioChart(arr){
   const yMin = Math.min(...inv, ...rea, ...unr);
   const yMax = Math.max(...inv, ...rea, ...unr);
 
-  // поля
   const left = 64, right = 10, top = 10, bottom = 28;
   const W = Math.max(10, w - left - right);
   const H = Math.max(10, h - top - bottom);
 
-  // скейли
   const { ticks: yTicks, start: yStart, end: yEnd } = niceTicks(yMin, yMax, 6);
   const yScale = v => top + (H - (v - yStart) / (yEnd - yStart) * H);
 
@@ -844,13 +829,11 @@ function drawPortfolioChart(arr){
   }
   const xScale = t => left + (t - t0) / Math.max(1, (t1 - t0)) * W;
 
-  // кольори з теми
   const css = getComputedStyle(rootEl);
   const gridCol  = css.getPropertyValue('--axis-grid').trim()  || 'rgba(0,0,0,.12)';
   const textCol  = css.getPropertyValue('--axis-text').trim()  || '#444';
   const frameCol = css.getPropertyValue('--axis-frame').trim() || 'rgba(0,0,0,.35)';
 
-  // сітка та підписи
   ctx.save();
   ctx.strokeStyle = gridCol;
   ctx.fillStyle   = textCol;
@@ -871,49 +854,37 @@ function drawPortfolioChart(arr){
     ctx.fillText(lbl, Math.min(Math.max(x - tw/2, left), left + W - tw), h - 8);
   });
 
-  // рамка
   ctx.strokeStyle = frameCol;
   ctx.strokeRect(left, top, W, H);
   ctx.restore();
 
-  // лінії
-// кольори з теми
+  const isDark =
+    document.documentElement.classList.contains('dark') ||
+    (document.body && document.body.classList.contains('dark'));
 
-// ----- лінії (завжди видимі в обох темах)
-// ----- лінії (видимі в обох темах)
-const isDark =
-  document.documentElement.classList.contains('dark') ||
-  (document.body && document.body.classList.contains('dark'));
+  const S1 = css.getPropertyValue('--series-1').trim();
+  const S2 = css.getPropertyValue('--series-2').trim();
+  const S3 = css.getPropertyValue('--series-3').trim();
 
-// якщо є css-змінні — використай їх; інакше фолбек за темою
-const themeEl = document.querySelector('html.dark, body.dark') || document.documentElement;
+  const col1 = S1 || (isDark ? '#ffffff' : '#111111'); // invested
+  const col2 = S2 || (isDark ? '#ffffff' : '#333333'); // realized
+  const col3 = S3 || (isDark ? '#ffffff' : '#555555'); // unrealized
 
-const S1 = css.getPropertyValue('--series-1').trim();
-const S2 = css.getPropertyValue('--series-2').trim();
-const S3 = css.getPropertyValue('--series-3').trim();
-
-const col1 = S1 || (isDark ? '#ffffff' : '#111111'); // invested
-const col2 = S2 || (isDark ? '#ffffff' : '#333333'); // realized
-const col3 = S3 || (isDark ? '#ffffff' : '#555555'); // unrealized
-
-function drawLine(series, color){
-  ctx.beginPath();
-  series.forEach((v,i)=>{
-    const x = xScale(arr[i].t);
-    const y = yScale(v);
-    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  });
-  ctx.lineWidth = 2.25;
-  ctx.strokeStyle = color;
-  if (isDark) { ctx.shadowColor = color; ctx.shadowBlur = 2; } else { ctx.shadowBlur = 0; }
-  ctx.stroke();
-}
-
-drawLine(inv, col1);
-drawLine(rea, col2);
-drawLine(unr, col3);
-
-
+  function drawLine(series, color){
+    ctx.beginPath();
+    series.forEach((v,i)=>{
+      const x = xScale(arr[i].t);
+      const y = yScale(v);
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.lineWidth = 2.25;
+    ctx.strokeStyle = color;
+    if (isDark) { ctx.shadowColor = color; ctx.shadowBlur = 2; } else { ctx.shadowBlur = 0; }
+    ctx.stroke();
+  }
+  drawLine(inv, col1);
+  drawLine(rea, col2);
+  drawLine(unr, col3);
 }
 
 // лог і перемальовування після кожного renderAll
@@ -933,6 +904,81 @@ renderAll = function(){
   }catch(e){ console.warn('metrics calc error', e); }
 };
 
+// === Snapshot helpers (кумулятивні покупки/продажі для точних цін)
+function itemKey(it){ return (it && (it.id || it.name)) || ""; }
+
+async function loadSnapshot(){
+  const { tgLastSnapshotV2 } = await chrome.storage.local.get("tgLastSnapshotV2");
+  return tgLastSnapshotV2 || {};
+}
+async function saveSnapshot(snap){
+  await chrome.storage.local.set({ tgLastSnapshotV2: snap || {} });
+}
+
+// побудова знімка на базі всіх предметів (щоб врахувати продажі навіть якщо qty зараз 0)
+function buildSnapshot(items){
+  const snap = {};
+  for (const it of items || []){
+    const m   = calc(it) || {};
+    const heldQty = Number(m.heldQty ?? it.amount ?? it.qty ?? 0) || 0;
+
+    let buyQty = 0, buyValue = 0;
+    for (const r of (it.lots || [])){
+      const q = Number(r.qty)||0;
+      const p = Number(r.price)||0; // якщо треба нетто — додай комісію тут
+      buyQty   += q;
+      buyValue += q * p;
+    }
+
+    let sellQty = 0, sellValue = 0;
+    for (const r of (it.sells || [])){
+      const q = Number(r.qty)||0;
+      const p = Number(r.priceNet ?? r.price ?? 0);
+      sellQty   += q;
+      sellValue += q * p;
+    }
+
+    if (!buyQty && !sellQty && !heldQty) continue;
+
+    const key = itemKey(it);
+    if (!key) continue;
+
+    snap[key] = {
+      name: it.name || key,
+      heldQty,
+      buyQty, buyValue,
+      sellQty, sellValue
+    };
+  }
+  return snap;
+}
+
+// різниця між знімками -> нові покупки/продажі із середньою ціною за інтервал (= ΔВартість/ΔК-сть)
+function diffSnapshots(prev, curr){
+  const bought = []; // {name, delta, price}
+  const sold   = []; // {name, delta, price}
+  const keys = new Set([...Object.keys(prev||{}), ...Object.keys(curr||{})]);
+
+  for (const k of keys){
+    const P = prev[k] || { buyQty:0, buyValue:0, sellQty:0, sellValue:0, heldQty:0, name:k };
+    const C = curr[k] || { buyQty:0, buyValue:0, sellQty:0, sellValue:0, heldQty:0, name:k };
+
+    const dBuyQty   = C.buyQty   - P.buyQty;
+    const dBuyValue = C.buyValue - P.buyValue;
+    if (dBuyQty > 0){
+      bought.push({ name: C.name || P.name || k, delta: dBuyQty, price: dBuyValue / dBuyQty });
+    }
+
+    const dSellQty   = C.sellQty   - P.sellQty;
+    const dSellValue = C.sellValue - P.sellValue;
+    if (dSellQty > 0){
+      sold.push({ name: C.name || P.name || k, delta: dSellQty, price: dSellValue / dSellQty });
+    }
+  }
+  bought.sort((a,b)=> b.delta - a.delta);
+  sold  .sort((a,b)=> b.delta - a.delta);
+  return { bought, sold };
+}
 
 // ---- Telegram buttons ----
 document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=>{
@@ -941,7 +987,6 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
       .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
       .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 
-  // Пороги
   const SELL_ROI = 25;   // > 25% = продавати
   const BUY_ROI  = -25;  // < -25% = докупити
 
@@ -955,8 +1000,7 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
     const unreal   = m.unrealized ?? 0;
     const qty      = m.heldQty ?? it.amount ?? it.qty ?? 0;
 
-    // ❗ пропускаємо записи з qty == 0
-    if (!qty) continue;
+    if (!qty) continue;                 // ❗ пропускаємо 0
 
     const roi = invested > 0 ? (unreal / invested * 100) : 0;
 
@@ -972,7 +1016,6 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
     else                     mid.push({ roi, line });
   }
 
-  // Сортування
   sell.sort((a,b)=> b.roi - a.roi);
   buy .sort((a,b)=> a.roi - b.roi);
   mid .sort((a,b)=> Math.abs(b.roi) - Math.abs(a.roi));
@@ -980,24 +1023,52 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
   const pnl = totalUnreal;
   const roiTot = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
 
+  // ==== DIFFERENCE SECTION ====
+  const prevSnap = await loadSnapshot();
+  const currSnap = buildSnapshot(state.items);
+  const { bought, sold } = diffSnapshots(prevSnap, currSnap);
+
   const lines = [
     "<b>📊 Steam Invest Ultra</b>",
     `<b>Позицій:</b> ${state.items?.length || 0}`,
-    `<b>К-сть (шт):</b> ${totalQty}`,
+    `<b>К-сть (шт, активних):</b> ${totalQty}`,
     `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
     `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
-    "",
+    ""
+  ];
+
+  if (bought.length || sold.length){
+    if (bought.length){
+      lines.push(`<b>🆕 Куплено:</b>`);
+      for (const r of bought){
+        lines.push(`• ${esc(r.name)} — +${r.delta} шт × ${fmt(r.price)}`);
+      }
+    }
+    if (sold.length){
+      if (bought.length) lines.push("");
+      lines.push(`<b>💸 Продано:</b>`);
+      for (const r of sold){
+        lines.push(`• ${esc(r.name)} — −${r.delta} шт × ${fmt(r.price)}`);
+      }
+    }
+    lines.push("");
+  } else {
+    lines.push(`<i>Змін від попереднього звіту не виявлено</i>`, "");
+  }
+
+  // ==== ROI BLOCKS ====
+  lines.push(
     `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
     ...sell.map(x=>x.line),
     "",
-    `<b>🤔 Під питанням докупити (ROI &lt; -${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
+    `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
     ...buy.map(x=>x.line),
     "",
     `<b>📎 Решта (від −${Math.abs(BUY_ROI)}% до +${SELL_ROI}%):</b> ${mid.length ? "" : "—"}`,
     ...mid.map(x=>x.line),
-  ];
+  );
 
-  // Відправка шматками
+  // ==== Відправка по рядках ====
   const maxLen = 3500;
   let buf = "";
   let ok = true, lastErr = "";
@@ -1021,13 +1092,11 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
   }
   if (buf) await sendChunk(buf);
 
+  if (ok) await saveSnapshot(currSnap);
   alert(ok ? "Відправлено в Telegram" : ("Помилка Telegram: " + lastErr));
 });
 
-
-
-
-// Шорткат "/" → фокус у пошук, Esc → очистити
+// Шорткати пошуку й live-search
 function focusSearchHotkey(ev){
   const tag = (document.activeElement?.tagName||"").toLowerCase();
   if (ev.key === "/" && tag !== "input" && tag !== "textarea"){
@@ -1038,23 +1107,11 @@ function focusSearchHotkey(ev){
   }
 }
 window.addEventListener("keydown", focusSearchHotkey);
-function tgEscapeHtml(s){
-  if (s == null) return "";
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
-
-// ===== Live search (DOM filter) =====
 (function setupLiveSearch(){
-  // 1) інпут: візьмемо існуючий #search; якщо його немає — створимо над таблицею
   let search = document.querySelector("#search");
   const table = document.querySelector("#tbl, #portfolioTable") || document.querySelector("table");
-  if (!table) return; // немає таблиці — нічого робити
+  if (!table) return;
   const tbody = table.tBodies && table.tBodies[0] ? table.tBodies[0] : table.querySelector("tbody");
 
   if (!search){
@@ -1069,32 +1126,24 @@ function tgEscapeHtml(s){
     table.parentNode.insertBefore(wrap, table);
   }
 
-  // 2) функція фільтрації по тексту (назва + теги)
   function filterRows(q){
     if (!tbody) return;
     const needle = (q||"").trim().toLowerCase();
     const rows = Array.from(tbody.rows);
-    let shown = 0;
     for (const tr of rows){
-      // 0-й стовпець — Назва, 1-й — Теги (підлаштуй, якщо інші індекси)
       const name = (tr.cells[0]?.textContent || "").toLowerCase();
       const tags = (tr.cells[1]?.textContent || "").toLowerCase();
       const ok = !needle || name.includes(needle) || tags.includes(needle);
       tr.style.display = ok ? "" : "none";
-      if (ok) shown++;
     }
-    // опційно — виводити кількість знайдених
-    // console.log("found:", shown);
   }
 
-  // 3) debounce, обробники і хоткеї
   let t;
   search.addEventListener("input", () => {
     clearTimeout(t);
     t = setTimeout(() => filterRows(search.value), 120);
   });
 
-  // шорткати: "/" — фокус, "Esc" — очистити
   window.addEventListener("keydown", (ev)=>{
     const tag = (document.activeElement?.tagName||"").toLowerCase();
     if (ev.key === "/" && tag !== "input" && tag !== "textarea"){
@@ -1107,6 +1156,5 @@ function tgEscapeHtml(s){
     }
   });
 
-  // 4) первинний прогін (якщо в інпуті щось лишилось)
   filterRows(search.value);
 })();
