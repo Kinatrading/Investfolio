@@ -225,6 +225,50 @@
     </div>
   </section>
 
+
+  <!-- ==== Історія Steam (останні 100) ==== -->
+  <section class="card">
+    <h2>Історія Steam (останні 100)</h2>
+    <div class="row">
+      <button id="loadSteam100">Завантажити 100</button>
+      <button id="loadSteamMore">Ще +100</button>
+      <span id="steamStatus" class="muted"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="steamHist">
+        <thead>
+          <tr>
+            <th>Дата</th><th>Тип</th><th>Іконка</th><th>Назва</th><th>Ціна</th><th>Дія</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+
+
+  <!-- ==== Повний інвентар Steam ==== -->
+  <section class="card">
+    <h2>Інвентар Steam</h2>
+    <div class="row">
+      <button id="loadInvBtn">Завантажити інвентар</button>
+      <input id="invSearch" placeholder="Фільтр за назвою..." style="margin-left:8px; flex:1">
+      <span id="invStatus" class="muted"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="invTbl">
+        <thead>
+          <tr>
+            <th>Іконка</th><th>Назва</th><th>К-сть</th><th>Tradable</th><th>Дія</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+
   <script src="app.js"></script>
 </body>
 </html>

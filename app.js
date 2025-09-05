@@ -1023,6 +1023,9 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
   const pnl = totalUnreal;
   const roiTot = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
 
+	const totals = portfolioTotals();
+	const bucket = await loadRealizedTotal();
+	const totalRealizedAll = totals.totalRealized + (bucket.pnl || 0);
   // ==== DIFFERENCE SECTION ====
   const prevSnap = await loadSnapshot();
   const currSnap = buildSnapshot(state.items);
@@ -1033,6 +1036,7 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
     `<b>Позицій:</b> ${state.items?.length || 0}`,
     `<b>К-сть (шт, активних):</b> ${totalQty}`,
     `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
+	`<b>Realized PnL:</b> ₴${fmt(totalRealizedAll)}`,
     `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
     ""
   ];
@@ -1158,3 +1162,303 @@ window.addEventListener("keydown", focusSearchHotkey);
 
   filterRows(search.value);
 })();
+
+
+
+// ===== Steam History integration =====
+let steamHistory = [];
+let steamStart = 0;
+
+async function fetchSteamChunk(start=0, count=100){
+  const url = `https://steamcommunity.com/market/myhistory/render/?query=&start=${start}&count=${count}`;
+  try{
+    const res = await fetch(url, { credentials:'include', headers:{ 'Accept':'application/json' }});
+    if (res.status === 429){
+      $("#steamStatus").textContent = "429 — за багато запитів. Спроба ще раз за 30с...";
+      await new Promise(r=>setTimeout(r, 30000));
+      return await fetchSteamChunk(start, count);
+    }
+    const data = await res.json();
+    if (!data || !data.success) throw new Error("Bad response");
+    const parser = new DOMParser();
+    const htmlDoc = parser.parseFromString(data.results_html, "text/html");
+    const rows = htmlDoc.querySelectorAll(".market_recent_listing_row");
+    const parsePrice = (s)=> Number(String(s||"").replace(/[^\d.,-]/g,"").replace(",", ".").match(/-?\d+(\.\d+)?/)?.[0]||0);
+
+    // build icon map from assets
+    const assets = data.assets||{};
+    const iconMap = {};
+    for (const appid in assets){
+      const appAssets = assets[appid]||{};
+      for (const aid in appAssets){
+        const a = appAssets[aid];
+        const k = `${a.classid||''}_${a.instanceid||''}`;
+        if (k && a.icon_url) iconMap[k] = a.icon_url.startsWith('http') ? a.icon_url : `https://community.akamai.steamstatic.com/economy/image/${a.icon_url}`;
+      }
+    }
+
+    const out = [];
+    rows.forEach(row=>{
+      const actedOn = row.querySelector(".market_listing_listed_date")?.textContent.trim() || "";
+      const classid = row.getAttribute('data-classid') || row.dataset.classid || '';
+      const instanceid = row.getAttribute('data-instanceid') || row.dataset.instanceid || '';
+      const icon = iconMap[`${classid}_${instanceid}`] || '';
+      const name = row.querySelector(".market_listing_item_name")?.textContent.trim() || "";
+      const priceStr = row.querySelector(".market_listing_price")?.textContent.trim() || "";
+      const symbol = row.querySelector(".market_listing_gainorloss")?.textContent.trim() || "";
+      const acted = symbol === "+" ? "bought" : (symbol === "−" || symbol === "-" ? "sold" : "unknown");
+      const price = parsePrice(priceStr);
+      if (name && price>0 && (acted==="bought"||acted==="sold")){
+        out.push({ actedOn, name, acted, price, icon });
+      }
+    });
+    return out;
+  }catch(e){
+    $("#steamStatus").textContent = "Помилка завантаження історії: " + e.message;
+    return [];
+  }
+}
+
+function renderSteamHistory(){
+  const body = $("#steamHist tbody");
+  body.innerHTML = "";
+  for (let i=0;i<steamHistory.length;i++){
+    const r = steamHistory[i];
+    const tr = document.createElement("tr");
+    const actUa = r.acted==="bought"?"Купівля":"Продаж";
+    tr.innerHTML = `
+      <td>${r.actedOn||""}</td>
+      <td>${actUa}</td>
+      <td>${r.icon?`<img src='${r.icon}' alt='' style='width:28px;height:28px;border-radius:4px'>`:''}</td>
+      <td>${r.name}</td>
+      <td>${fmt(r.price)}</td>
+      <td><button class="applyBtn" data-idx="${i}">Застосувати</button></td>
+    `;
+    body.appendChild(tr);
+  }
+}
+
+async function applySteamRow(idx){
+  const r = steamHistory[idx];
+  if (!r) return;
+  let it = state.items.find(x => (x.name||"").trim().toLowerCase() === r.name.trim().toLowerCase());
+  if (r.acted === "bought"){
+    if (!it){
+      it = { id: uid(), name: r.name, tags:"", itemUrl:"", apiUrl:"", lots:[], sells:[], firstSellPrice:null, firstBuyPrice:null, firstBuyQty:null, lastFetchedAt:null, priceHistory:[] };
+      state.items.push(it);
+    }
+    it.lots.push({ id: uid(), qty: 1, price: r.price, date: todayISO() });
+    await save();
+    $("#steamStatus").textContent = `Додано 1 шт "${r.name}" в портфель.`;
+  } else if (r.acted === "sold"){
+    if (!it){ alert("В портфелі не знайдено такої позиції для списання."); return; }
+    const m = calc(it);
+    if ((m.heldQty||0) < 1){ alert("Недостатньо кількості в портфелі для списання 1 шт."); return; }
+    it.sells.push({ id: uid(), qty: 1, price: r.price, date: todayISO(), avgCostAtSale: m.avgCost });
+    await save();
+    $("#steamStatus").textContent = `Списано 1 шт "${r.name}" (продаж).`;
+  }
+  renderAll();
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  $("#loadSteam100")?.addEventListener("click", async ()=>{
+    steamStart = 0;
+    $("#steamStatus").textContent = "Завантаження...";
+    const chunk = await fetchSteamChunk(steamStart, 100);
+    steamHistory = chunk;
+    steamStart += chunk.length;
+    $("#steamStatus").textContent = `Отримано ${chunk.length} записів.`;
+    renderSteamHistory();
+  });
+  $("#loadSteamMore")?.addEventListener("click", async ()=>{
+    $("#steamStatus").textContent = "Завантаження ще...";
+    const chunk = await fetchSteamChunk(steamStart, 100);
+    steamHistory = steamHistory.concat(chunk);
+    steamStart += chunk.length;
+    $("#steamStatus").textContent = `Всього ${steamHistory.length} записів.`;
+    renderSteamHistory();
+  });
+  $("#steamHist")?.addEventListener("click", (e)=>{
+    const t = e.target;
+    if (t.classList.contains("applyBtn")){
+      const idx = Number(t.dataset.idx);
+      applySteamRow(idx);
+    }
+  });
+});
+// ===== end Steam History =====
+
+
+
+// ===== Inventory =====
+let fullInventory = [];
+
+async function getOwnSteamID(){
+  // robust: follow /my/inventory/, handle vanity -> xml, numeric profiles, g_steamID
+  let res;
+  try{
+    res = await fetch("https://steamcommunity.com/my/inventory/", { credentials:'include' });
+  }catch(e){ throw new Error("NET error @ /my/inventory/: "+(e?.message||e)); }
+  const url = res.url || "";
+  let mvan = url.match(/\/id\/([^\/?#]+)/);
+  if (mvan){
+    const xmlRes = await fetch(`https://steamcommunity.com/id/${mvan[1]}/?xml=1`, { credentials:'include' });
+    const xml = await xmlRes.text();
+    const mid = xml.match(/<steamID64>(\d{17})<\/steamID64>/);
+    if (mid) return mid[1];
+  }
+  let mprof = url.match(/\/profiles\/(\d{17})/);
+  if (mprof) return mprof[1];
+  try{
+    const r2 = await fetch("https://steamcommunity.com/my?l=english", { credentials:'include' });
+    const html = await r2.text();
+    const m = html.match(/\"g_steamID\"\s*:\s*\"(\d{17})\"/);
+    if (m) return m[1];
+  }catch{}
+  const manual = prompt("Не вдалося визначити SteamID. Введи 17-значний SteamID:");
+  if (manual && /^\d{17}$/.test(manual)) return manual;
+  throw new Error("SteamID не визначено");
+}
+
+function resolveLang(){
+  const htmlLang = (document.documentElement.lang||'').toLowerCase();
+  if (htmlLang.startsWith('uk')) return 'ukrainian';
+  if (htmlLang.startsWith('ru')) return 'russian';
+  if (htmlLang.startsWith('cs')) return 'czech';
+  if (htmlLang.startsWith('en')) return 'english';
+  return 'english';
+}
+
+async function fetchInventoryPageLegacy(steamid, appid, contextid, start=""){
+  const base = `https://steamcommunity.com/profiles/${steamid}/inventory/json/${appid}/${contextid}?l=${resolveLang()}`;
+  const url = start ? `${base}/?start=${encodeURIComponent(start)}` : base;
+  const res = await fetch(url, { credentials:'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
+  const data = await res.json();
+  const assets = [], descriptions = [];
+  const rgInv = data.rgInventory || {};
+  const rgDesc = data.rgDescriptions || {};
+  for (const k in rgInv){
+    const a = rgInv[k];
+    assets.push({ appid: String(appid), contextid: String(contextid), assetid: String(a.id), classid: String(a.classid), instanceid: String(a.instanceid), amount: String(a.amount||"1") });
+  }
+  for (const k in rgDesc){
+    const d = rgDesc[k];
+    descriptions.push({ classid:String(d.classid), instanceid:String(d.instanceid), name:d.name, market_name:d.market_name, market_hash_name:d.market_hash_name, icon_url:d.icon_url, tradable:Number(d.tradable||0) });
+  }
+  return { assets, descriptions, more_items: Boolean(data.more), last_assetid: data.last_assetid };
+}
+
+async function fetchInventoryJSONPaged(steamid, appid, contextid){
+  const lang = resolveLang();
+  const mkBase = ()=> `https://steamcommunity.com/inventory/${steamid}/${appid}/${contextid}?l=${encodeURIComponent(lang)}&count=2000&t=${Date.now()}&r=${Math.random().toString(36).slice(2)}`;
+  let more = true, last_assetid = "", pages=0;
+  const allAssets=[], allDescs=[];
+  while (more){
+    const url = mkBase() + (last_assetid ? `&start_assetid=${encodeURIComponent(last_assetid)}` : '');
+    let tries=0;
+    while(true){
+      try{
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok){
+          const body = await res.text().catch(()=>'');
+          if (res.status===429 || res.status>=500 || /duplicate/i.test(body)){
+            if (++tries<=4){ await new Promise(r=>setTimeout(r, 600*tries)); continue; }
+          }
+          const err = new Error(`HTTP ${res.status} @ ${url}`); err.httpStatus=res.status; throw err;
+        }
+        const data = await res.json();
+        if (data.assets) allAssets.push(...data.assets);
+        if (data.descriptions) allDescs.push(...data.descriptions);
+        more = Boolean(data.more_items);
+        last_assetid = data.last_assetid;
+        break;
+      }catch(e){
+        if (++tries<=4){ await new Promise(r=>setTimeout(r, 600*tries)); continue; }
+        throw e;
+      }
+    }
+    await new Promise(r=>setTimeout(r, 300));
+  }
+  return { assets: allAssets, descriptions: allDescs };
+}
+
+async function fetchInventoryAll(appid=730, contextid=2){
+  const steamid = await getOwnSteamID();
+  $("#invStatus").textContent = "Читаю інвентар…";
+  let data=null;
+  try{
+    data = await fetchInventoryJSONPaged(steamid, appid, contextid);
+  }catch(e1){
+    try{ data = await fetchInventoryPageLegacy(steamid, appid, contextid); }
+    catch(e2){ $("#invStatus").textContent = e1.message; throw e1; }
+  }
+  const assets = data.assets||[];
+  const descs  = data.descriptions||[];
+  const map = {};
+  for (const d of descs){
+    const key = `${String(d.classid)}_${String(d.instanceid)}`;
+    map[key] = d;
+  }
+  const acc = [];
+  for (const a of assets){
+    const key = `${String(a.classid)}_${String(a.instanceid)}`;
+    const d = map[key]||{};
+    const name = d.market_hash_name || d.market_name || d.name || "";
+    const icon = d.icon_url ? (String(d.icon_url).startsWith("http")? d.icon_url : `https://community.akamai.steamstatic.com/economy/image/${d.icon_url}`) : "";
+    const tradable = Number(d.tradable||0)===1;
+    acc.push({ name, icon, tradable, classid: String(a.classid), instanceid: String(a.instanceid), assetid: String(a.assetid), amount: Number(a.amount||1) });
+  }
+  const grouped = {};
+  for (const it of acc){
+    const k = `${it.classid}_${it.instanceid}`;
+    if (!grouped[k]) grouped[k] = { name: it.name, icon: it.icon, tradable: it.tradable, classid: it.classid, instanceid: it.instanceid, qty:0, assetids:[] };
+    grouped[k].qty += it.amount || 1;
+    grouped[k].assetids.push(it.assetid);
+  }
+  fullInventory = Object.values(grouped).sort((a,b)=> a.name.localeCompare(b.name));
+  $("#invStatus").textContent = `Готово. Унікальних предметів: ${fullInventory.length}`;
+  renderInventory();
+}
+
+function renderInventory(){
+  const body = $("#invTbl tbody");
+  const q = ($("#invSearch")?.value||"").trim().toLowerCase();
+  body.innerHTML = "";
+  for (const r of fullInventory){
+    if (q && !r.name.toLowerCase().includes(q)) continue;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.icon?`<img src="${r.icon}" alt="" style="width:28px;height:28px;border-radius:4px">`:''}</td>
+      <td>${r.name}</td>
+      <td>${r.qty}</td>
+      <td>${r.tradable? "yes":"no"}</td>
+      <td><button class="btnAddInv" data-name="${r.name.replace(/"/g,'&quot;')}">+ в портфель</button></td>
+    `;
+    body.appendChild(tr);
+  }
+}
+
+async function addInvToPortfolio(name){
+  let it = state.items.find(x => (x.name||"").trim().toLowerCase() === name.trim().toLowerCase());
+  if (!it){
+    it = { id: uid(), name, tags:"", itemUrl:"", apiUrl:"", lots:[], sells:[], firstSellPrice:null, firstBuyPrice:null, firstBuyQty:null, lastFetchedAt:null, priceHistory:[] };
+    state.items.push(it);
+  }
+  it.lots.push({ id: uid(), qty: 1, price: 0, date: todayISO() });
+  await save();
+  renderAll();
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  $("#loadInvBtn")?.addEventListener("click", ()=> fetchInventoryAll().catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+  $("#invSearch")?.addEventListener("input", ()=> renderInventory());
+  $("#invTbl")?.addEventListener("click", (e)=>{
+    const t = e.target;
+    if (t.classList.contains("btnAddInv")){
+      addInvToPortfolio(t.dataset.name);
+    }
+  });
+});
+// ===== end inventory =====
