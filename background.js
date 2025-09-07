@@ -96,10 +96,10 @@ function maybeNotify(item, firstSell, firstBuy, settings){
   var listing = firstSell.price;
   var messages = [];
   if (item.alertBuyAtOrBelow!=null && listing!=null && listing <= item.alertBuyAtOrBelow){
-    messages.push("Listing ≤ ₴"+listing.toFixed(2)+" (≤ target ₴"+item.alertBuyAtOrBelow+")");
+    messages.push("Можна купити — ціна листингу ₴"+listing.toFixed(2)+" (≤ цілі ₴"+item.alertBuyAtOrBelow+")");
   }
   if (item.alertSellAtOrAbove!=null && netBuyOrder!=null && netBuyOrder >= item.alertSellAtOrAbove){
-    messages.push("Buy-order net ≥ ₴"+netBuyOrder.toFixed(2)+" (≥ target ₴"+item.alertSellAtOrAbove+")");
+    messages.push("Можна продати — net buy-order ₴"+netBuyOrder.toFixed(2)+" (≥ цілі ₴"+item.alertSellAtOrAbove+")");
   }
   if (messages.length){
     try{
@@ -115,6 +115,16 @@ function maybeNotify(item, firstSell, firstBuy, settings){
       priority: 2
     });
     pushLog("ALERT "+(item.name||"")+": "+messages.join(" | "));
+      // === NEW: also send to personal Telegram chat if set ===
+      try{
+        if (settings && settings.telegramBotToken && settings.telegramChatIdPersonal){
+          const url = "https://api.telegram.org/bot"+encodeURIComponent(settings.telegramBotToken)+"/sendMessage";
+          const body = { chat_id: settings.telegramChatIdPersonal, text: (item.name||"")+": "+messages.join('\n'), parse_mode: 'HTML' };
+          fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            .catch(()=>{});
+        }
+      }catch(e){}
+
   }
 }
 
@@ -565,11 +575,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     try{
       if (!msg || msg.type !== 'SEND_TELEGRAM') return;
-      const { text, parseMode } = msg.payload || {};
+      const { text, parseMode, chatId: chatOverride } = msg.payload || {};
       const st = await chrome.storage.local.get(["settings"]);
       const settings = st.settings || {};
       const token = settings.telegramBotToken;
-      const chatId = settings.telegramChatId;
+      const chatId = (chatOverride || settings.telegramChatId);
       const mode = parseMode || settings.telegramParseMode || 'HTML';
       if (!token || !chatId){
         sendResponse({ ok:false, error: "Немає токена або chat_id у налаштуваннях." });

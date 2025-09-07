@@ -13,7 +13,7 @@
     
     <button id="scanAllBtn" title="Послідовно оновити всі API">Сканувати всі API</button>
     <button id="openAllBtn" title="Відкрити всі API у вкладках">Відкрити всі API</button>
-    <button id="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram">В Telegram</button>
+    <button id="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram">В Telegram</button><button id="sendTgShortBtn" title="Надіслати СКОРОЧЕНИЙ звіт у Telegram">В TG (коротко)</button>
     <label class="fileLabel">Імпорт JSON<input type="file" id="importFile" accept="application/json" hidden/></label>
     <button id="clearBtn" class="danger">Очистити</button>
     <button id="themeBtn" title="Тема">🌓</button>
@@ -33,6 +33,10 @@
       <div>
         <label>Telegram Chat ID</label>
         <input id="tgChatId" type="text" placeholder="Напр., 123456789 або @channelname" />
+      </div>
+      <div>
+        <label>Telegram Chat ID (особистий)</label>
+        <input id="tgChatIdPersonal" type="text" placeholder="Ваш особистий чат або @username" />
       </div>
 
       <div>

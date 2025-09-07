@@ -120,6 +120,7 @@ async function load(){
   state.items = items; state.settings = Object.assign(state.settings, settings||{});
   rootEl.classList.toggle('dark', state.settings.theme==='dark'); // темна тема на <html>
   ensureShapes();
+  populateSettingsUI();
   renderAll();
   renderSettings();
 }
@@ -467,11 +468,39 @@ function parseTopN(htmlStr, n){
 async function saveSettings(){
   const tokEl = document.querySelector("#tgToken");
   const chatEl = document.querySelector("#tgChatId");
-  if (tokEl) state.settings.telegramBotToken = tokEl.value.trim();
+  if (tokEl){ const v = tokEl.value.trim(); if (v && !/^\*+$/.test(v)) state.settings.telegramBotToken = v; }
   if (chatEl) state.settings.telegramChatId = chatEl.value.trim();
+  const chat2El = document.querySelector('#tgChatIdPersonal');
+  if (chat2El) state.settings.telegramChatIdPersonal = chat2El.value.trim();
   await chrome.storage.local.set({ settings: state.settings });
+  populateSettingsUI();
 }
 
+
+function maskTokenDisplay(tok){
+  if (!tok) return "";
+  return "*".repeat(Math.min(24, Math.max(12, tok.length)));
+}
+
+function populateSettingsUI(){
+  try{
+    const s = state.settings || {};
+    const feeEl = document.getElementById("feePct");
+    const autoEl = document.getElementById("autoRefreshMinutes");
+    const batchEl = document.getElementById("batchDelayMs");
+    const valEl = document.getElementById("valuationMode");
+    const tokEl = document.getElementById("tgToken");
+    const chatEl = document.getElementById("tgChatId");
+    const chat2El = document.getElementById("tgChatIdPersonal");
+    if (feeEl) feeEl.value = ( (s.feePct!=null ? s.feePct : 0.15) * 100 ).toFixed(1);
+    if (autoEl) autoEl.value = s.autoRefreshMinutes || 0;
+    if (batchEl) batchEl.value = s.batchDelayMs || 200;
+    if (valEl) valEl.value = s.valuationMode || 'sell';
+    if (tokEl) tokEl.value = s.telegramBotToken ? maskTokenDisplay(s.telegramBotToken) : "";
+    if (chatEl) chatEl.value = s.telegramChatId || "";
+    if (chat2El) chat2El.value = s.telegramChatIdPersonal || "";
+  }catch(e){}
+}
 function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 // ---- події UI ----
 $("#saveSettingsBtn").addEventListener("click", async ()=>{
@@ -1100,6 +1129,125 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
   alert(ok ? "Відправлено в Telegram" : ("Помилка Telegram: " + lastErr));
 });
 
+
+
+document.getElementById("sendTgShortBtn")?.addEventListener("click", async ()=>{
+  const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+  const esc = s => String(s ?? "")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+
+  const SELL_ROI = 25;   // > 25% = продавати
+  const BUY_ROI  = -25;  // < -25% = докупити
+
+  let totalInvested = 0, totalUnreal = 0, totalQty = 0;
+
+  const sell = [], buy = [], mid = [];
+
+  for (const it of (state.items || [])) {
+    const m = calc(it) || {};
+    const invested = m.netCost ?? 0;
+    const unreal   = m.unrealized ?? 0;
+    const qty      = m.heldQty ?? it.amount ?? it.qty ?? 0;
+
+    if (!qty) continue;                 // ❗ пропускаємо 0
+
+    const roi = invested > 0 ? (unreal / invested * 100) : 0;
+
+    totalInvested += invested;
+    totalUnreal   += unreal;
+    totalQty      += (Number(qty) || 0);
+
+    const nm = esc(it?.name || "");
+    const line = `• <b>${nm}</b> — к-сть ${qty}, нетто ${fmt(invested)}, PnL ${fmt(unreal)}, ROI ${fmt(roi)}%`;
+
+    if (roi > SELL_ROI)      sell.push({ roi, line });
+    else if (roi < BUY_ROI)  buy.push({ roi, line });
+    else                     mid.push({ roi, line });
+  }
+
+  sell.sort((a,b)=> b.roi - a.roi);
+  buy .sort((a,b)=> a.roi - b.roi);
+  mid .sort((a,b)=> Math.abs(b.roi) - Math.abs(a.roi));
+
+  const pnl = totalUnreal;
+  const roiTot = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
+
+	const totals = portfolioTotals();
+	const bucket = await loadRealizedTotal();
+	const totalRealizedAll = totals.totalRealized + (bucket.pnl || 0);
+  // ==== DIFFERENCE SECTION ====
+  const prevSnap = await loadSnapshot();
+  const currSnap = buildSnapshot(state.items);
+  const { bought, sold } = diffSnapshots(prevSnap, currSnap);
+
+  const lines = [
+    "<b>📊 Steam Invest Ultra — короткий звіт</b>",
+    `<b>Позицій:</b> ${state.items?.length || 0}`,
+    `<b>К-сть (шт, активних):</b> ${totalQty}`,
+    `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
+	`<b>Realized PnL:</b> ₴${fmt(totalRealizedAll)}`,
+    `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
+    ""
+  ];
+
+  if (bought.length || sold.length){
+    if (bought.length){
+      lines.push(`<b>🆕 Куплено:</b>`);
+      for (const r of bought){
+        lines.push(`• ${esc(r.name)} — +${r.delta} шт × ${fmt(r.price)}`);
+      }
+    }
+    if (sold.length){
+      if (bought.length) lines.push("");
+      lines.push(`<b>💸 Продано:</b>`);
+      for (const r of sold){
+        lines.push(`• ${esc(r.name)} — −${r.delta} шт × ${fmt(r.price)}`);
+      }
+    }
+    lines.push("");
+  } else {
+    lines.push(`<i>Змін від попереднього звіту не виявлено</i>`, "");
+  }
+
+  // ==== ROI BLOCKS ====
+  lines.push(
+    `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
+    ...sell.map(x=>x.line),
+    "",
+    `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
+    ...buy.map(x=>x.line),
+    "",
+    );
+
+  // ==== Відправка по рядках ====
+  const maxLen = 3500;
+  let buf = "";
+  let ok = true, lastErr = "";
+
+  async function sendChunk(text){
+    const res = await chrome.runtime.sendMessage({
+      type: 'SEND_TELEGRAM',
+      payload: { text, parseMode: 'HTML' }
+    });
+    if (!res?.ok){ ok = false; lastErr = res?.error || "Telegram error"; }
+  }
+
+  for (const line of lines){
+    const candidate = buf ? (buf + "\n" + line) : line;
+    if (candidate.length > maxLen){
+      if (buf) await sendChunk(buf);
+      buf = line;
+    } else {
+      buf = candidate;
+    }
+  }
+  if (buf) await sendChunk(buf);
+
+  if (ok) await saveSnapshot(currSnap);
+  alert(ok ? "Відправлено в Telegram" : ("Помилка Telegram: " + lastErr));
+});
+
 // Шорткати пошуку й live-search
 function focusSearchHotkey(ev){
   const tag = (document.activeElement?.tagName||"").toLowerCase();
@@ -1407,14 +1555,18 @@ async function fetchInventoryAll(appid=730, contextid=2){
     const d = map[key]||{};
     const name = d.market_hash_name || d.market_name || d.name || "";
     const icon = d.icon_url ? (String(d.icon_url).startsWith("http")? d.icon_url : `https://community.akamai.steamstatic.com/economy/image/${d.icon_url}`) : "";
-    const tradable = Number(d.tradable||0)===1;
-    acc.push({ name, icon, tradable, classid: String(a.classid), instanceid: String(a.instanceid), assetid: String(a.assetid), amount: Number(a.amount||1) });
+    const tradFlag = Number(d.tradable||0)===1;
+    const markFlag = Number(d.marketable||0)===1;
+    const tradable = tradFlag && markFlag;
+    acc.push({ name, icon, tradable, classid: String(a.classid), instanceid: String(a.instanceid), assetid: String(a.assetid), amount: Number(a.amount||1), effectiveTradable: tradable, rawTrad: tradFlag?1:0, rawMark: markFlag?1:0 });
   }
   const grouped = {};
   for (const it of acc){
-    const k = `${it.classid}_${it.instanceid}`;
-    if (!grouped[k]) grouped[k] = { name: it.name, icon: it.icon, tradable: it.tradable, classid: it.classid, instanceid: it.instanceid, qty:0, assetids:[] };
+    const k = `${it.classid}_${it.instanceid}_${it.effectiveTradable?1:0}`;
+    if (!grouped[k]) grouped[k] = { name: it.name, icon: it.icon, tradable: it.effectiveTradable, classid: it.classid, instanceid: it.instanceid, qty:0, assetids:[], rawTradYes:0, rawMarkYes:0 };
     grouped[k].qty += it.amount || 1;
+    grouped[k].rawTradYes += it.rawTrad ? (it.amount||1) : 0;
+    grouped[k].rawMarkYes += it.rawMark ? (it.amount||1) : 0;
     grouped[k].assetids.push(it.assetid);
   }
   fullInventory = Object.values(grouped).sort((a,b)=> a.name.localeCompare(b.name));
@@ -1433,7 +1585,7 @@ function renderInventory(){
       <td>${r.icon?`<img src="${r.icon}" alt="" style="width:28px;height:28px;border-radius:4px">`:''}</td>
       <td>${r.name}</td>
       <td>${r.qty}</td>
-      <td>${r.tradable? "yes":"no"}</td>
+      <td title="trad:${r.rawTradYes||0}/${r.qty} • market:${r.rawMarkYes||0}/${r.qty}">${r.tradable? "YES":"NO"}</td>
       <td><button class="btnAddInv" data-name="${r.name.replace(/"/g,'&quot;')}">+ в портфель</button></td>
     `;
     body.appendChild(tr);
