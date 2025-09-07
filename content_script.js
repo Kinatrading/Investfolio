@@ -64,11 +64,22 @@
       panel.appendChild(inp);
       return inp;
     }
-    const qtyInp   = mk('Кількість','siu-qty','напр., 1');
+    
+    // --- stats row (held qty & avg cost) ---
+    const statsRow = document.createElement('div');
+    statsRow.style.gridColumn = '1 / -1';
+    statsRow.style.fontSize = '12px';
+    statsRow.style.opacity = '0.9';
+    statsRow.style.marginBottom = '2px';
+    statsRow.id = 'siu-stats';
+    statsRow.textContent = 'Завантаження…';
+    panel.appendChild(statsRow);
+const qtyInp   = mk('Кількість','siu-qty','напр., 1');
     const priceInp = mk('Ціна','siu-price','напр., 2.50');
     const abInp    = mk('Alert buy ≤','siu-alert-buy','напр., 1.75');
     const asInp    = mk('Alert sell ≥','siu-alert-sell','напр., 3.20');
     document.body.appendChild(panel);
+    loadPortfolioStatsFor(getName());
 
     function getName(){
       const cand = [
@@ -91,6 +102,32 @@
       }catch(e){}
       return 'Unknown item';
     }
+    function loadPortfolioStatsFor(name){
+      try{
+        chrome.storage.local.get(['items'], (data)=>{
+          try{
+            const items = Array.isArray(data.items) ? data.items : [];
+            const it = items.find(x => (x && (x.name||'').trim().toLowerCase()) === (name||'').trim().toLowerCase());
+            const statsEl = document.getElementById('siu-stats');
+            if (!it){ if (statsEl) statsEl.textContent = 'Поки що нема у портфелі.'; return; }
+            const buys = Array.isArray(it.lots) ? it.lots : [];
+            const sells = Array.isArray(it.sells) ? it.sells : [];
+            const buysQty  = buys.reduce((s,x)=> s + (+x.qty||0), 0);
+            const buysCost = buys.reduce((s,x)=> s + (+x.qty||0) * (+x.price||0), 0);
+            const sellsQty = sells.reduce((s,x)=> s + (+x.qty||0), 0);
+            const sellsCostRemoved = sells.reduce((s,x)=> s + (+x.qty||0) * (+x.avgCostAtSale||0), 0);
+            const heldQty = buysQty - sellsQty;
+            const netCost = buysCost - sellsCostRemoved;
+            const avgCost = heldQty > 0 ? (netCost / heldQty) : 0;
+            if (statsEl){
+              const fmt = (n)=> (isFinite(n) ? Number(n).toFixed(2) : '0.00');
+              statsEl.textContent = 'У тебе: ' + heldQty + ' шт · сер. собівартість ₴' + fmt(avgCost);
+            }
+          }catch(e){}
+        });
+      }catch(e){}
+    }
+
 
     
     function sniffVarsFromHtml(){

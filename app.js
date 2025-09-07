@@ -472,6 +472,8 @@ async function saveSettings(){
   if (chatEl) state.settings.telegramChatId = chatEl.value.trim();
   const chat2El = document.querySelector('#tgChatIdPersonal');
   if (chat2El) state.settings.telegramChatIdPersonal = chat2El.value.trim();
+  /* dup removed */ 
+  if (chat2El) state.settings.telegramChatIdPersonal = chat2El.value.trim();
   await chrome.storage.local.set({ settings: state.settings });
   populateSettingsUI();
 }
