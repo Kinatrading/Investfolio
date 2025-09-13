@@ -1741,7 +1741,8 @@ document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async 
       const dUnr = currTotals.totalUnreal   - (prevT.totalUnreal||0);
       const dQty = currTotals.totalQty      - (prevT.totalQty||0);
       const dReal= currTotals.totalRealizedAll - (prevT.totalRealizedAll||0);
-      lines.push("");
+      soldNet = dReal; // tie net sales to realized PnL delta for the period
+lines.push("");
       lines.push("Δ Підсумки від минулого звіту:");
 lines.push(`  💳 Витрачено на купівлю: ₴${fmt(spentBuy)}`);
 lines.push(`  💵 Отримано з продаж (брутто): ₴${fmt(soldGross)}`);
