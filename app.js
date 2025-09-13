@@ -1062,7 +1062,26 @@ document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=
   const currSnap = buildSnapshot(state.items);
   const { bought, sold } = diffSnapshots(prevSnap, currSnap);
 
-  const lines = [
+  
+  // === Aggregates for local diff report ===
+  let spentBuy = 0, soldGross = 0, soldNet = 0;
+  try {
+    // Use the same arrays that are rendered in the report
+    spentBuy  = (Array.isArray(bought) ? bought : []).reduce((s,x)=> s + Number(x.delta||0)*Number(x.price||0), 0);
+    soldGross = (Array.isArray(sold)   ? sold   : []).reduce((s,x)=> s + Number(x.delta||0)*Number(x.price||0), 0);
+    // Net realized: sum over sold of qty * (sellPrice - avgCostFromPrevSnap)
+    const snap = prevSnap || {};
+    soldNet = (Array.isArray(sold) ? sold : []).reduce((s,x)=>{
+      const prev = snap[x.name] || {};
+      const buyQty = Number(prev.buyQty || 0);
+      const buyValue = Number(prev.buyValue || 0);
+      const avgCost = buyQty > 0 ? (buyValue / buyQty) : 0;
+      const qty = Number(x.delta||0);
+      const price = Number(x.price||0);
+      return s + qty * (price - avgCost);
+    }, 0);
+  } catch(e){ console.warn("Aggregate calc failed", e); }
+const lines = [
     "<b>📊 Steam Invest Ultra</b>",
     `<b>Позицій:</b> ${state.items?.length || 0}`,
     `<b>К-сть (шт, активних):</b> ${totalQty}`,
@@ -1652,6 +1671,39 @@ document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async 
       // сума витраченого на купівлі в цьому періоді
       spentBuy = (bought || []).reduce((s,x)=> s + (Number(x.delta||0) * Number(x.price||0)), 0);
       sold   = d.sold   || [];
+
+      // map by display name from prevSnap to handle localized names vs keys
+      let nameMap = {};
+      try {
+        for (const k of Object.keys(prevSnap || {})) {
+          const rec = (prevSnap || {})[k] || {};
+          if (rec && rec.name) { nameMap[rec.name] = rec; }
+        }
+      } catch(e) {}
+      // compute aggregates
+      soldGross = (sold || []).reduce((s,x)=> s + (Number(x.delta||0) * Number(x.price||0)), 0);
+      (function(){
+        soldNet = (sold || []).reduce((s,x)=>{
+          const prev = (prevSnap && prevSnap[x.name]) || nameMap[x.name] || {};
+          const buyQty = Number(prev.buyQty || 0);
+          const buyValue = Number(prev.buyValue || 0);
+          const avgCost = buyQty > 0 ? (buyValue / buyQty) : 0;
+          return s + Number(x.delta||0) * (Number(x.price||0) - avgCost);
+        }, 0);
+      })();
+          // сума отриманого з продаж (брутто) та чистими (від середньої собівартості з prevSnap)
+      soldGross = (sold || []).reduce((s,x)=> s + (Number(x.delta||0) * Number(x.price||0)), 0);
+      (function(){
+        const snap = prevSnap || {};
+        soldNet = (sold || []).reduce((s,x)=>{
+          const prev = snap[x.name] || {};
+          const buyQty = Number(prev.buyQty || 0);
+          const buyValue = Number(prev.buyValue || 0);
+          const avgCost = buyQty > 0 ? (buyValue / buyQty) : 0;
+          return s + Number(x.delta||0) * (Number(x.price||0) - avgCost);
+        }, 0);
+      })();
+    
     }
 
     const lines = [];
@@ -1692,8 +1744,7 @@ document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async 
       lines.push("");
       lines.push("Δ Підсумки від минулого звіту:");
 lines.push(`  💳 Витрачено на купівлю: ₴${fmt(spentBuy)}`);
-
-      lines.push(`  💵 Отримано з продаж (брутто): ₴${fmt(soldGross)}`);
+lines.push(`  💵 Отримано з продаж (брутто): ₴${fmt(soldGross)}`);
       lines.push(`  💸 Отримано з продаж (чистими): ₴${fmt(soldNet)}`);
 lines.push(`  💰 Зміна інвестованого (нетто): ₴${fmt(dInv)} (тепер ₴${fmt(currTotals.totalInvested)})`);
 lines.push(`  📉 ∆ Unrealized PnL: ₴${fmt(dUnr)} (тепер ₴${fmt(currTotals.totalUnreal)})`);
