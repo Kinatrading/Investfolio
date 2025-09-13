@@ -1777,3 +1777,103 @@ lines.push(`  📉 ∆ Unrealized PnL: ₴${fmt(dUnr)} (тепер ₴${fmt(curr
     alert("Не вдалося зберегти звіт зі змінами: " + (err?.message || err));
   }
 });
+
+
+// ===== Auto-update Portfolio from Steam History =====
+const STORAGE_KEY_LAST_HIST_MARKER = 'lastSteamHistoryMarker';
+
+function makeHistoryMarker(row){
+  // Prefer assetid if present; our parser doesn't expose it, so try to read from DOM attributes if available in raw HTML later.
+  // Fallback: a stable hash string from actedOn|name|acted|price
+  const s = `${row.actedOn}||${row.name}||${row.acted}||${row.price}`;
+  let h = 0;
+  for (let i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h|=0; }
+  return `H${h}`;
+}
+
+async function autoUpdatePortfolioFromHistory(){
+  $("#steamStatus").textContent = "Оновлення портфелю з історії…";
+  let marker = (await chrome.storage?.local?.get?.([STORAGE_KEY_LAST_HIST_MARKER]))?.[STORAGE_KEY_LAST_HIST_MARKER];
+  if (marker == null){
+    // First run: fetch first page, set marker to first row and exit
+    const chunk = await fetchSteamChunk(0, 100);
+    if (chunk.length){
+      const newest = makeHistoryMarker(chunk[0]);
+      await chrome.storage.local.set({ [STORAGE_KEY_LAST_HIST_MARKER]: newest });
+      $("#steamStatus").textContent = "Перший запуск: зафіксовано поточний стан історії. Натисни ще раз, щоб обробити нові події.";
+    } else {
+      $("#steamStatus").textContent = "Історія порожня.";
+    }
+    return;
+  }
+
+  // Iterate pages until we find marker or run out
+  let start = 0;
+  const pageSize = 100;
+  let found = false;
+  let toProcess = []; // newest -> older (before marker)
+  let newestMarkerThisRun = null;
+
+  while(true){
+    const page = await fetchSteamChunk(start, pageSize);
+    if (page.length === 0) break;
+    if (!newestMarkerThisRun) newestMarkerThisRun = makeHistoryMarker(page[0]);
+    for (const row of page){
+      const m = makeHistoryMarker(row);
+      if (m === marker){ found = true; break; }
+      toProcess.push(row);
+    }
+    if (found) break;
+    start += page.length;
+    // Safety: avoid infinite loops
+    if (page.length < pageSize) break;
+    await new Promise(r=>setTimeout(r, 300));
+  }
+
+  if (!toProcess.length){
+    $("#steamStatus").textContent = found ? "Нових записів немає." : "Не знайшов попередню позицію — можливо історію обрізано.";
+    if (found && newestMarkerThisRun) await chrome.storage.local.set({ [STORAGE_KEY_LAST_HIST_MARKER]: newestMarkerThisRun });
+    return;
+  }
+
+  // Process newest -> older (reverse to apply chronological order oldest->newest)
+  toProcess.reverse();
+  let applied = 0, skipped = 0, errors = 0;
+  for (const r of toProcess){
+    try{
+      const it = state.items.find(x => (x.name||"").trim().toLowerCase() === r.name.trim().toLowerCase());
+      if (!it){
+        skipped++; // skip items not in portfolio
+        continue;
+      }
+      if (r.acted === "bought"){
+        // Only update existing items; do NOT create new ones
+        it.lots = Array.isArray(it.lots) ? it.lots : [];
+        it.lots.push({ id: uid(), qty: 1, price: r.price, date: todayISO() });
+        applied++;
+      } else if (r.acted === "sold"){
+        const m = calc(it);
+        if ((m.heldQty||0) < 1){
+          skipped++; // can't sell nonexistent qty
+          continue;
+        }
+        it.sells = Array.isArray(it.sells) ? it.sells : [];
+        it.sells.push({ id: uid(), qty: 1, price: r.price, date: todayISO(), avgCostAtSale: m.avgCost });
+        applied++;
+      } else {
+        skipped++;
+      }
+    }catch(e){
+      console.error("apply error", e);
+      errors++;
+    }
+  }
+
+  await save();
+  if (newestMarkerThisRun) await chrome.storage.local.set({ [STORAGE_KEY_LAST_HIST_MARKER]: newestMarkerThisRun });
+  $("#steamStatus").textContent = `Готово: застосовано ${applied}, пропущено ${skipped}${errors?`, помилок: ${errors}`:''}.`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  $("#updatePortfolioAuto")?.addEventListener("click", autoUpdatePortfolioFromHistory);
+});
