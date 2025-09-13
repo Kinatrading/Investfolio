@@ -1618,93 +1618,92 @@ document.addEventListener("DOMContentLoaded", ()=>{
 // ===== end inventory =====
 
 
-
 // ===== Local save (short summary) =====
 document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async ()=>{
   try{
     const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
-    const SELL_ROI = 25;
-    const BUY_ROI  = -25;
+    const pad = n => String(n).padStart(2,'0');
+
+    const currSnap = (typeof buildSnapshot === "function" ? buildSnapshot(state.items) : {});
+
+    const resp = await chrome.storage.local.get(["lastLocalSummarySnap", "lastLocalSummaryTotals"]);
+    const prevSnap = resp?.lastLocalSummarySnap || null;
+    const prevTotals = resp?.lastLocalSummaryTotals || null;
 
     let totalInvested = 0, totalUnreal = 0, totalQty = 0;
-    const sell = [], buy = [], mid = [];
-
     for (const it of (state.items || [])) {
       const m = (typeof calc === "function" ? (calc(it) || {}) : {});
       const invested = m.netCost ?? 0;
       const unreal   = m.unrealized ?? 0;
       const qty      = m.heldQty ?? it.amount ?? it.qty ?? 0;
-
       totalInvested += invested;
       totalUnreal   += unreal;
       totalQty      += qty;
-
-      const roi = invested ? (unreal / invested * 100) : 0;
-      const line = `${it.name || it.item || it.title || '—'} — qty: ${qty}, invested: ₴${fmt(invested)}, unreal: ₴${fmt(unreal)} (ROI ${fmt(roi)}%)`;
-      if (roi >= SELL_ROI) sell.push({ roi, line });
-      else if (roi <= BUY_ROI) buy.push({ roi, line });
-      else mid.push({ roi, line });
     }
-
-    sell.sort((a,b)=>b.roi-a.roi);
-    buy.sort((a,b)=>a.roi-b.roi);
-    mid.sort((a,b)=>b.roi-a.roi);
-
     const totals = (typeof portfolioTotals === "function" ? portfolioTotals() : { totalRealized: 0 });
     const bucket = (typeof loadRealizedTotal === "function" ? (await loadRealizedTotal()) : { pnl: 0 });
     const totalRealizedAll = (totals.totalRealized || 0) + (bucket.pnl || 0);
+    const currTotals = { totalInvested, totalUnreal, totalQty, totalRealizedAll };
 
-    const prevSnap = (typeof loadSnapshot === "function" ? (await loadSnapshot()) : {});
-    const currSnap = (typeof buildSnapshot === "function" ? buildSnapshot(state.items) : {});
-    const diff = (typeof diffSnapshots === "function" ? diffSnapshots(prevSnap, currSnap) : { bought:[], sold:[] });
-    const bought = diff.bought || [];
-    const sold   = diff.sold || [];
-
-    const header = [
-      "📊 Steam Invest Ultra",
-      `Позицій: ${state.items?.length || 0}`,
-      `К-сть (шт, активних): ${totalQty}`,
-      `Інвестовано: ₴${fmt(totalInvested)}`,
-      `Realized PnL: ₴${fmt(totalRealizedAll)}`,
-      `PnL (нереал.): ₴${fmt(totalUnreal)}`,
-      ""
-    ].join("\n").replace(/^ +/gm, "");
-
-    const parts = [];
-    parts.push(header);
-
-    if (bought.length || sold.length){
-      if (bought.length){
-        parts.push("🆕 Куплено:");
-        for (const x of bought){
-          parts.push(`  + ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
-        }
-      }
-      if (sold.length){
-        parts.push("💸 Продано:");
-        for (const x of sold){
-          parts.push(`  − ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
-        }
-      }
-      parts.push("");
+    let bought = [], sold = []; let spentBuy = 0; let soldGross = 0; let soldNet = 0;
+    if (prevSnap && typeof diffSnapshots === "function"){
+      const d = diffSnapshots(prevSnap, currSnap) || {};
+      bought = d.bought || [];
+      // сума витраченого на купівлі в цьому періоді
+      spentBuy = (bought || []).reduce((s,x)=> s + (Number(x.delta||0) * Number(x.price||0)), 0);
+      sold   = d.sold   || [];
     }
 
-    parts.push(`🚩 Продавати (>${SELL_ROI}%): ${sell.length ? "" : "—"}`);
-    for (const s of sell) parts.push("  " + s.line);
-    parts.push("");
-    parts.push(`🧲 Докупити (<${Math.abs(BUY_ROI)}%): ${buy.length ? "" : "—"}`);
-    for (const b of buy) parts.push("  " + b.line);
-    parts.push("");
-    parts.push(`📎 Решта: ${mid.length ? "" : "—"}`);
-    for (const m of mid) parts.push("  " + m.line);
+    const lines = [];
+    const now = new Date();
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    lines.push(`📄 Звіт змін (локально) — ${stamp}`);
 
-    const text = parts.join("\n");
+    if (!prevSnap){
+      lines.push("");
+      lines.push("Базовий знімок стану збережено (раніше не було з чим порівняти).");
+      lines.push(`Позицій: ${state.items?.length || 0}`);
+    } else {
+      if (bought.length || sold.length){
+        if (bought.length){
+          lines.push("");
+          lines.push("🆕 Куплено з моменту минулого звіту:");
+          for (const x of bought){
+            lines.push(`  + ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
+          }
+        }
+        if (sold.length){
+          lines.push("");
+          lines.push("💸 Продано з моменту минулого звіту:");
+          for (const x of sold){
+            lines.push(`  − ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
+          }
+        }
+      } else {
+        lines.push("");
+        lines.push("Змін у купівлях/продажах не виявлено.");
+      }
 
-    // Filename with local date/time
-    const pad = n => String(n).padStart(2,'0');
-    const d = new Date();
-    const fname = `report_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.txt`;
+      const prevT = prevTotals || { totalInvested:0, totalUnreal:0, totalQty:0, totalRealizedAll:0 };
+      const dInv = currTotals.totalInvested - (prevT.totalInvested||0);
+      const dUnr = currTotals.totalUnreal   - (prevT.totalUnreal||0);
+      const dQty = currTotals.totalQty      - (prevT.totalQty||0);
+      const dReal= currTotals.totalRealizedAll - (prevT.totalRealizedAll||0);
+      lines.push("");
+      lines.push("Δ Підсумки від минулого звіту:");
+lines.push(`  💳 Витрачено на купівлю: ₴${fmt(spentBuy)}`);
 
+      lines.push(`  💵 Отримано з продаж (брутто): ₴${fmt(soldGross)}`);
+      lines.push(`  💸 Отримано з продаж (чистими): ₴${fmt(soldNet)}`);
+lines.push(`  💰 Зміна інвестованого (нетто): ₴${fmt(dInv)} (тепер ₴${fmt(currTotals.totalInvested)})`);
+lines.push(`  📉 ∆ Unrealized PnL: ₴${fmt(dUnr)} (тепер ₴${fmt(currTotals.totalUnreal)})`);
+      lines.push(`  📦 ∆ К-сть активних: ${dQty >= 0 ? "+" + Math.trunc(dQty) : Math.trunc(dQty)} (тепер ${Math.trunc(currTotals.totalQty)})`);
+      lines.push(`  📈 ∆ Realized PnL: ₴${fmt(dReal)} (тепер ₴${fmt(currTotals.totalRealizedAll)})`);
+    }
+
+    const text = lines.join("\n");
+
+    const fname = `report_changes_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}.txt`;
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1716,8 +1715,13 @@ document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async 
       URL.revokeObjectURL(url);
       a.remove();
     }, 1000);
+
+    await chrome.storage.local.set({ 
+      lastLocalSummarySnap: currSnap,
+      lastLocalSummaryTotals: currTotals
+    });
   } catch(err){
-    console.error("Save local summary failed:", err);
-    alert("Не вдалося зберегти короткий звіт: " + (err?.message || err));
+    console.error("Save local summary (diff) failed:", err);
+    alert("Не вдалося зберегти звіт зі змінами: " + (err?.message || err));
   }
 });
