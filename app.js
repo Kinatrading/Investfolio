@@ -1616,3 +1616,108 @@ document.addEventListener("DOMContentLoaded", ()=>{
   });
 });
 // ===== end inventory =====
+
+
+
+// ===== Local save (short summary) =====
+document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async ()=>{
+  try{
+    const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+    const SELL_ROI = 25;
+    const BUY_ROI  = -25;
+
+    let totalInvested = 0, totalUnreal = 0, totalQty = 0;
+    const sell = [], buy = [], mid = [];
+
+    for (const it of (state.items || [])) {
+      const m = (typeof calc === "function" ? (calc(it) || {}) : {});
+      const invested = m.netCost ?? 0;
+      const unreal   = m.unrealized ?? 0;
+      const qty      = m.heldQty ?? it.amount ?? it.qty ?? 0;
+
+      totalInvested += invested;
+      totalUnreal   += unreal;
+      totalQty      += qty;
+
+      const roi = invested ? (unreal / invested * 100) : 0;
+      const line = `${it.name || it.item || it.title || '—'} — qty: ${qty}, invested: ₴${fmt(invested)}, unreal: ₴${fmt(unreal)} (ROI ${fmt(roi)}%)`;
+      if (roi >= SELL_ROI) sell.push({ roi, line });
+      else if (roi <= BUY_ROI) buy.push({ roi, line });
+      else mid.push({ roi, line });
+    }
+
+    sell.sort((a,b)=>b.roi-a.roi);
+    buy.sort((a,b)=>a.roi-b.roi);
+    mid.sort((a,b)=>b.roi-a.roi);
+
+    const totals = (typeof portfolioTotals === "function" ? portfolioTotals() : { totalRealized: 0 });
+    const bucket = (typeof loadRealizedTotal === "function" ? (await loadRealizedTotal()) : { pnl: 0 });
+    const totalRealizedAll = (totals.totalRealized || 0) + (bucket.pnl || 0);
+
+    const prevSnap = (typeof loadSnapshot === "function" ? (await loadSnapshot()) : {});
+    const currSnap = (typeof buildSnapshot === "function" ? buildSnapshot(state.items) : {});
+    const diff = (typeof diffSnapshots === "function" ? diffSnapshots(prevSnap, currSnap) : { bought:[], sold:[] });
+    const bought = diff.bought || [];
+    const sold   = diff.sold || [];
+
+    const header = [
+      "📊 Steam Invest Ultra",
+      `Позицій: ${state.items?.length || 0}`,
+      `К-сть (шт, активних): ${totalQty}`,
+      `Інвестовано: ₴${fmt(totalInvested)}`,
+      `Realized PnL: ₴${fmt(totalRealizedAll)}`,
+      `PnL (нереал.): ₴${fmt(totalUnreal)}`,
+      ""
+    ].join("\n").replace(/^ +/gm, "");
+
+    const parts = [];
+    parts.push(header);
+
+    if (bought.length || sold.length){
+      if (bought.length){
+        parts.push("🆕 Куплено:");
+        for (const x of bought){
+          parts.push(`  + ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
+        }
+      }
+      if (sold.length){
+        parts.push("💸 Продано:");
+        for (const x of sold){
+          parts.push(`  − ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
+        }
+      }
+      parts.push("");
+    }
+
+    parts.push(`🚩 Продавати (>${SELL_ROI}%): ${sell.length ? "" : "—"}`);
+    for (const s of sell) parts.push("  " + s.line);
+    parts.push("");
+    parts.push(`🧲 Докупити (<${Math.abs(BUY_ROI)}%): ${buy.length ? "" : "—"}`);
+    for (const b of buy) parts.push("  " + b.line);
+    parts.push("");
+    parts.push(`📎 Решта: ${mid.length ? "" : "—"}`);
+    for (const m of mid) parts.push("  " + m.line);
+
+    const text = parts.join("\n");
+
+    // Filename with local date/time
+    const pad = n => String(n).padStart(2,'0');
+    const d = new Date();
+    const fname = `report_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.txt`;
+
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 1000);
+  } catch(err){
+    console.error("Save local summary failed:", err);
+    alert("Не вдалося зберегти короткий звіт: " + (err?.message || err));
+  }
+});
