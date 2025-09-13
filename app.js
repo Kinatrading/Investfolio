@@ -1,3 +1,24 @@
+
+function makeHistoryMarker(row){
+  const parts = [
+    row.actedOn || '',
+    row.name || '',
+    row.acted || '',
+    String(row.price||''),
+    row.classid || '',
+    row.instanceid || '',
+    row.rid || '',
+    row.purchaseid || '',
+    row.listingid || '',
+    row.contentHash || ''
+  ];
+  const s = parts.join('||');
+  let h = 0;
+  for (let i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h|=0; }
+  return `H${h}`;
+}
+// i18n bootstrap
+try{(function(){const s=document.createElement('script');s.src=chrome.runtime.getURL('i18n/i18n.js');document.documentElement.appendChild(s);})();}catch(e){}
 /* global chrome */
 const $ = (s) => document.querySelector(s);
 const tbody = $("#tbl tbody");
@@ -184,7 +205,7 @@ function drawChart(item){
   if (!hist.length) return;
   const data = hist.slice(-60).map(p => (state.settings.valuationMode==='buy' ? p.b : p.s)).filter(x => x!=null);
   if (data.length < 2) return;
-  const min = Math.min(...data), max = Math.max(...data);
+  const min = Math.min(data), max = Math.max(data);
   const pad = 8;
   const w = chart.width - pad*2, h = chart.height - pad*2;
   ctx.beginPath();
@@ -472,8 +493,6 @@ async function saveSettings(){
   if (chatEl) state.settings.telegramChatId = chatEl.value.trim();
   const chat2El = document.querySelector('#tgChatIdPersonal');
   if (chat2El) state.settings.telegramChatIdPersonal = chat2El.value.trim();
-  /* dup removed */ 
-  if (chat2El) state.settings.telegramChatIdPersonal = chat2El.value.trim();
   await chrome.storage.local.set({ settings: state.settings });
   populateSettingsUI();
 }
@@ -503,7 +522,7 @@ function populateSettingsUI(){
     if (chat2El) chat2El.value = s.telegramChatIdPersonal || "";
   }catch(e){}
 }
-function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+function debounce(fn, ms=200){ let t; return (a)=>{ clearTimeout(t); t=setTimeout(()=>fn(a), ms); }; }
 // ---- події UI ----
 $("#saveSettingsBtn").addEventListener("click", async ()=>{
   state.settings.feePct = Math.max(0, parseFloat($("#feePct").value||"0")/100);
@@ -842,8 +861,8 @@ function drawPortfolioChart(arr){
   const unr = arr.map(p=>p.unrealized);
   const t0 = arr[0].t, t1 = arr[arr.length-1].t;
 
-  const yMin = Math.min(...inv, ...rea, ...unr);
-  const yMax = Math.max(...inv, ...rea, ...unr);
+  const yMin = Math.min(inv, rea, unr);
+  const yMax = Math.max(inv, rea, unr);
 
   const left = 64, right = 10, top = 10, bottom = 28;
   const W = Math.max(10, w - left - right);
@@ -1113,13 +1132,13 @@ const lines = [
   // ==== ROI BLOCKS ====
   lines.push(
     `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
-    ...sell.map(x=>x.line),
+    sell.map(x=>x.line),
     "",
     `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
-    ...buy.map(x=>x.line),
+    buy.map(x=>x.line),
     "",
     `<b>📎 Решта (від −${Math.abs(BUY_ROI)}% до +${SELL_ROI}%):</b> ${mid.length ? "" : "—"}`,
-    ...mid.map(x=>x.line),
+    mid.map(x=>x.line),
   );
 
   // ==== Відправка по рядках ====
@@ -1234,11 +1253,11 @@ document.getElementById("sendTgShortBtn")?.addEventListener("click", async ()=>{
   // ==== ROI BLOCKS ====
   lines.push(
     `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
-    ...sell.map(x=>x.line),
+    sell.map(x=>x.line),
     "",
     `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
-    ...buy.map(x=>x.line),
-    "",
+    buy.map(x=>x.line),
+    ""
     );
 
   // ==== Відправка по рядках ====
@@ -1343,7 +1362,7 @@ async function fetchSteamChunk(start=0, count=100){
   try{
     const res = await fetch(url, { credentials:'include', headers:{ 'Accept':'application/json' }});
     if (res.status === 429){
-      $("#steamStatus").textContent = "429 — за багато запитів. Спроба ще раз за 30с...";
+      $("#steamStatus").textContent = "429 — за багато запитів. Спроба ще раз за 30с";
       await new Promise(r=>setTimeout(r, 30000));
       return await fetchSteamChunk(start, count);
     }
@@ -1377,8 +1396,14 @@ async function fetchSteamChunk(start=0, count=100){
       const symbol = row.querySelector(".market_listing_gainorloss")?.textContent.trim() || "";
       const acted = symbol === "+" ? "bought" : (symbol === "−" || symbol === "-" ? "sold" : "unknown");
       const price = parsePrice(priceStr);
+      const rid = row.getAttribute('id') || '';
+      const purchaseid = row.getAttribute('data-purchaseid') || row.dataset.purchaseid || '';
+      const listingid = row.getAttribute('data-listingid') || row.dataset.listingid || '';
+      const outer = row.outerHTML || '';
+      let ch = 0; for (let i=0;i<outer.length;i++){ ch = ((ch<<5)-ch) + outer.charCodeAt(i); ch|=0; }
+      const contentHash = `C${ch}`;
       if (name && price>0 && (acted==="bought"||acted==="sold")){
-        out.push({ actedOn, name, acted, price, icon });
+        out.push({ actedOn, name, acted, price, icon, classid, instanceid, rid, purchaseid, listingid, contentHash });
       }
     });
     return out;
@@ -1433,7 +1458,7 @@ async function applySteamRow(idx){
 document.addEventListener("DOMContentLoaded", ()=>{
   $("#loadSteam100")?.addEventListener("click", async ()=>{
     steamStart = 0;
-    $("#steamStatus").textContent = "Завантаження...";
+    $("#steamStatus").textContent = "Завантаження";
     const chunk = await fetchSteamChunk(steamStart, 100);
     steamHistory = chunk;
     steamStart += chunk.length;
@@ -1441,7 +1466,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     renderSteamHistory();
   });
   $("#loadSteamMore")?.addEventListener("click", async ()=>{
-    $("#steamStatus").textContent = "Завантаження ще...";
+    $("#steamStatus").textContent = "Завантаження ще";
     const chunk = await fetchSteamChunk(steamStart, 100);
     steamHistory = steamHistory.concat(chunk);
     steamStart += chunk.length;
@@ -1538,8 +1563,8 @@ async function fetchInventoryJSONPaged(steamid, appid, contextid){
           const err = new Error(`HTTP ${res.status} @ ${url}`); err.httpStatus=res.status; throw err;
         }
         const data = await res.json();
-        if (data.assets) allAssets.push(...data.assets);
-        if (data.descriptions) allDescs.push(...data.descriptions);
+        if (data.assets) allAssets.push(data.assets);
+        if (data.descriptions) allDescs.push(data.descriptions);
         more = Boolean(data.more_items);
         last_assetid = data.last_assetid;
         break;
@@ -1782,15 +1807,6 @@ lines.push(`  📉 ∆ Unrealized PnL: ₴${fmt(dUnr)} (тепер ₴${fmt(curr
 // ===== Auto-update Portfolio from Steam History =====
 const STORAGE_KEY_LAST_HIST_MARKER = 'lastSteamHistoryMarker';
 
-function makeHistoryMarker(row){
-  // Prefer assetid if present; our parser doesn't expose it, so try to read from DOM attributes if available in raw HTML later.
-  // Fallback: a stable hash string from actedOn|name|acted|price
-  const s = `${row.actedOn}||${row.name}||${row.acted}||${row.price}`;
-  let h = 0;
-  for (let i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h|=0; }
-  return `H${h}`;
-}
-
 async function autoUpdatePortfolioFromHistory(){
   $("#steamStatus").textContent = "Оновлення портфелю з історії…";
   let marker = (await chrome.storage?.local?.get?.([STORAGE_KEY_LAST_HIST_MARKER]))?.[STORAGE_KEY_LAST_HIST_MARKER];
@@ -1871,9 +1887,35 @@ async function autoUpdatePortfolioFromHistory(){
 
   await save();
   if (newestMarkerThisRun) await chrome.storage.local.set({ [STORAGE_KEY_LAST_HIST_MARKER]: newestMarkerThisRun });
-  $("#steamStatus").textContent = `Готово: застосовано ${applied}, пропущено ${skipped}${errors?`, помилок: ${errors}`:''}.`;
+  $("#steamStatus").textContent = `Готово: застосовано ${applied}, пропущено ${skipped}${errors ? ", помилок: " + errors : ""}.`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   $("#updatePortfolioAuto")?.addEventListener("click", autoUpdatePortfolioFromHistory);
 });
+
+
+// --- Language toggle ---
+(function(){
+  const btn = document.getElementById('langBtn');
+  if (!btn) return;
+  function update(){
+    try{
+      const cur = window.__extI18n ? window.__extI18n.getLang() : 'ukr';
+      // Show the *other* option on the button
+      btn.textContent = (cur === 'eng') ? 'UKR' : 'ENG';
+      btn.setAttribute('aria-label', cur === 'eng' ? 'Switch to Ukrainian' : 'Перемкнути на англійську');
+      btn.title = btn.getAttribute('aria-label');
+    }catch(e){}
+  }
+  btn.addEventListener('click', ()=>{
+    try{
+      const cur = window.__extI18n ? window.__extI18n.getLang() : 'ukr';
+      const next = (cur === 'eng') ? 'ukr' : 'eng';
+      if (window.__extI18n) window.__extI18n.setLang(next);
+    }catch(e){}
+    update();
+  });
+  // wait a tick for i18n to init
+  setTimeout(update, 50);
+})();

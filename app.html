@@ -8,132 +8,133 @@
 </head>
 <body class="window" id="body">
   <header class="bar">
-    <h1>Steam Invest Ultra (₴) <span id="hdrUnreal" class="badge big"></span></h1>
+    <h1 data-i18n-key="steam_invest_ultra">Steam Invest Ultra (₴) <span id="hdrUnreal" class="badge big"></span></h1>
     <div class="spacer"></div>
     
-    <button id="scanAllBtn" title="Послідовно оновити всі API">Сканувати всі API</button>
-    <button id="openAllBtn" title="Відкрити всі API у вкладках">Відкрити всі API</button>
-    <button id="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram">В Telegram</button><button id="sendTgShortBtn" title="Надіслати СКОРОЧЕНИЙ звіт у Telegram">В TG (коротко)</button><button id="saveLocalSummaryBtn" title="Зберегти короткий звіт у файл">Зберегти локально</button>
-    <label class="fileLabel">Імпорт JSON<input type="file" id="importFile" accept="application/json" hidden/></label>
-    <button id="clearBtn" class="danger">Очистити</button>
-    <button id="themeBtn" title="Тема">🌓</button>
+    <button id="scanAllBtn" title="Послідовно оновити всі API" data-i18n="|Сканувати всі API|Scan all APIs" data-i18n-key="scanAllBtn">Сканувати всі API</button>
+    <button id="openAllBtn" title="Відкрити всі API у вкладках" data-i18n="|Відкрити всі API|Open all APIs" data-i18n-key="openAllBtn">Відкрити всі API</button>
+    <button id="exportJsonBtn" data-i18n="|Експорт JSON|Export JSON" data-i18n-key="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram" data-i18n="|В Telegram|To Telegram" data-i18n-key="sendTgSummaryBtn">В Telegram</button><button id="sendTgShortBtn" title="Надіслати СКОРОЧЕНИЙ звіт у Telegram" data-i18n="|В TG (коротко)|To TG (short)" data-i18n-key="sendTgShortBtn">В TG (коротко)</button><button id="saveLocalSummaryBtn" title="Зберегти короткий звіт у файл" data-i18n="|Зберегти локально|Save locally" data-i18n-key="saveLocalSummaryBtn">Зберегти локально</button>
+    <label class="fileLabel" data-i18n="|Імпорт JSON|Import JSON" data-i18n-key="імпорт_json">Імпорт JSON<input type="file" id="importFile" accept="application/json" hidden/></label>
+    <button id="clearBtn" class="danger" data-i18n="|Очистити|Clear" data-i18n-key="clearBtn">Очистити</button>
+    <button id="langBtn" title="Мова" data-i18n-key="langBtn">ENG</button>
+    <button id="themeBtn" title="Тема" data-i18n-key="themeBtn">🌓</button>
   </header>
 
   <section class="card">
-    <h2>Налаштування</h2>
+    <h2 data-i18n="|Налаштування|Settings" data-i18n-key="налаштування">Налаштування</h2>
     <div class="grid four">
       <div>
-        <label>Комісія Steam (деф.), %</label>
+        <label data-i18n="|Комісія Steam (деф.), %|Steam fee (default), %" data-i18n-key="комісія_steam_деф">Комісія Steam (деф.), %</label>
         <input id="feePct" type="number" min="0" max="50" step="0.1" />
       </div>
       <div>
-        <label>Telegram Bot Token</label>
-        <input id="tgToken" type="text" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
+        <label data-i18n="|Telegram Bot Token|Telegram Bot Token" data-i18n-key="telegram_bot_token">Telegram Bot Token</label>
+        <input id="tgToken" type="text" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" / data-i18n-placeholder="tgToken__ph">
       </div>
       <div>
-        <label>Telegram Chat ID</label>
-        <input id="tgChatId" type="text" placeholder="Напр., 123456789 або @channelname" />
+        <label data-i18n="|Telegram Chat ID|Telegram Chat ID" data-i18n-key="telegram_chat_id">Telegram Chat ID</label>
+        <input id="tgChatId" type="text" placeholder="Напр., 123456789 або @channelname" / data-i18n-placeholder="tgChatId__ph">
       </div>
       <div>
-        <label>Telegram Chat ID (особистий)</label>
-        <input id="tgChatIdPersonal" type="text" placeholder="Ваш особистий чат або @username" />
+        <label data-i18n="|Telegram Chat ID (особистий)|Telegram Chat ID (personal)" data-i18n-key="telegram_chat_id_особистии">Telegram Chat ID (особистий)</label>
+        <input id="tgChatIdPersonal" type="text" placeholder="Ваш особистий чат або @username" data-i18n-ph="Ваш особистий чат або @username|Your private chat or @username" / data-i18n-placeholder="tgChatIdPersonal__ph">
       </div>
 
       <div>
-        <label>Авто-оновлення, хв (0=вимк)</label>
+        <label data-i18n="|Авто-оновлення, хв (0=вимк)|Auto-refresh, min (0=off)" data-i18n-key="авто_оновлення_хв_0вимк">Авто-оновлення, хв (0=вимк)</label>
         <input id="autoRefreshMinutes" type="number" min="0" step="1" />
       </div>
       <div>
-        <label>Затримка batch, мс</label>
+        <label data-i18n="|Затримка batch, мс|Batch delay, ms" data-i18n-key="затримка_batch_мс">Затримка batch, мс</label>
         <input id="batchDelayMs" type="number" min="50" step="50" />
       </div>
       <div>
-        <label>Оцінка портфеля</label>
+        <label data-i18n="|Оцінка портфеля|Portfolio valuation" data-i18n-key="оцінка_портфеля">Оцінка портфеля</label>
         <select id="valuationMode">
-          <option value="sell">За 1-ю ціною продажу (листинг)</option>
-          <option value="buy">За 1-м buy-order (миттєвий продаж)</option>
+          <option value="sell" data-i18n="|За 1-ю ціною продажу (листинг)|By first sell price (listing)" data-i18n-key="за_1_ю_ціною_продажу_листинг">За 1-ю ціною продажу (листинг)</option>
+          <option value="buy" data-i18n="|За топовим buy-order (миттєвий продаж)|By top buy-order (instant sale)" data-i18n-key="за_1_м_buy_order_миттєвии_продаж">За топовим buy-order (миттєвий продаж)</option>
         </select>
       </div>
     </div>
     <div class="row-inline mt6">
-      <button id="saveSettingsBtn">Зберегти налаштування</button>
+      <button id="saveSettingsBtn" data-i18n="|Зберегти налаштування|Save settings" data-i18n-key="saveSettingsBtn">Зберегти налаштування</button>
     </div>
   </section>
 
   <section class="card">
-    <h2>Додати предмет</h2><button id="sendTgCurrentBtn" class="right" title="Надіслати цей предмет у Telegram">В Telegram</button>
+    <h2 data-i18n="|Додати предмет|Add item" data-i18n-key="додати_предмет">Додати предмет</h2><button id="sendTgCurrentBtn" class="right" title="Надіслати цей предмет у Telegram" data-i18n="|В Telegram|To Telegram" data-i18n-key="sendTgCurrentBtn">В Telegram</button>
     <div class="grid four">
       <div>
-        <label>Назва</label>
-        <input id="name" placeholder="Напр., Sticker | NiP (Holo) | Stockholm 2021"/>
+        <label data-i18n="|Назва|Name" data-i18n-key="назва">Назва</label>
+        <input id="name" placeholder="Напр., Sticker | NiP (Holo) | Stockholm 2021"/ data-i18n-placeholder="name__ph">
       </div>
       <div>
-        <label>Теги (через кому)</label>
-        <input id="tags" placeholder="stickers, 2021, nip"/>
+        <label data-i18n="|Теги (через кому)|Tags (comma-separated)" data-i18n-key="теги_через_кому">Теги (через кому)</label>
+        <input id="tags" placeholder="stickers, 2021, nip"/ data-i18n-placeholder="tags__ph">
       </div>
       <div>
-        <label>Лінк на предмет</label>
-        <input id="itemUrl" type="url" placeholder="https://steamcommunity.com/market/listings/..."/>
+        <label data-i18n="|Лінк на предмет|Item link" data-i18n-key="лінк_на_предмет">Лінк на предмет</label>
+        <input id="itemUrl" type="url" placeholder="https://steamcommunity.com/market/listings/..."/ data-i18n-placeholder="itemUrl__ph">
       </div>
       <div>
-        <label>API URL (itemordershistogram)</label>
-        <input id="apiUrl" type="url" placeholder="https://steamcommunity.com/market/itemordershistogram?..."/>
-        <button id="autofillApiBtn" title="Автозаповнення API-лінка зі сторінки предмета">➕ Автозаповнити API</button>
+        <label data-i18n="|API URL (itemordershistogram)|API URL (itemordershistogram)" data-i18n-key="api_url_itemordershistogram">API URL (itemordershistogram)</label>
+        <input id="apiUrl" type="url" placeholder="https://steamcommunity.com/market/itemordershistogram?..."/ data-i18n-placeholder="apiUrl__ph">
+        <button id="autofillApiBtn" title="Автозаповнення API-лінка зі сторінки предмета" data-i18n="|➕ Автозаповнити API|➕ Autofill API" data-i18n-key="autofillApiBtn">➕ Автозаповнити API</button>
       </div>
     </div>
     <div class="row-inline mt6">
-      <button id="createItemBtn">Створити позицію</button>
+      <button id="createItemBtn" data-i18n="|Створити позицію|Create position" data-i18n-key="createItemBtn">Створити позицію</button>
     </div>
   </section>
 
   <section class="card">
-    <h2>Операції та ринок</h2>
+    <h2 data-i18n="|Операції та ринок|Operations & market" data-i18n-key="операціі_та_ринок">Операції та ринок</h2>
     <div class="grid four">
       <div>
-        <label>Обрана позиція</label>
+        <label data-i18n="|Обрана позиція|Selected position" data-i18n-key="обрана_позиція">Обрана позиція</label>
         <select id="itemSelect"></select>
       </div>
       <div>
-        <label>Дата</label>
+        <label data-i18n="|Дата|Date" data-i18n-key="дата">Дата</label>
         <input id="opDate" type="date"/>
       </div>
       <div>
-        <label>Ринок</label>
+        <label data-i18n="|Ринок|Market" data-i18n-key="ринок">Ринок</label>
         <div class="row-inline">
-          <button id="fetchBtn" title="Оновити ціни з API">Оновити ціни</button>
+          <button id="fetchBtn" title="Оновити ціни з API" data-i18n-key="fetchBtn">Оновити ціни</button>
           <span id="mkt" class="note"></span>
         </div>
       </div>
       <div>
-        <label>Лінки</label>
+        <label data-i18n-key="лінки">Лінки</label>
         <div id="links"></div>
         <div class="mt6">
-          <button id="editLinksBtn">✎ Лінки/комісія/теги</button>
+          <button id="editLinksBtn" data-i18n-key="editLinksBtn">✎ Лінки/комісія/теги</button>
         </div>
       </div>
     </div>
 
     <div class="grid three ops">
       <div class="op">
-        <h3>Купівля (додати)</h3>
-        <label>К-сть</label><input id="buyQty" type="number" min="1" step="1" value="1"/>
-        <label>Ціна, грн</label><input id="buyPrice" type="number" step="0.01" min="0"/>
-        <button id="addBuyBtn">Додати купівлю</button>
+        <h3 data-i18n="|Купівля (додати)|Buy (add)" data-i18n-key="купівля_додати">Купівля (додати)</h3>
+        <label data-i18n="|К-сть|Qty" data-i18n-key="к_сть">К-сть</label><input id="buyQty" type="number" min="1" step="1" value="1"/>
+        <label data-i18n="|Ціна, грн|Price, UAH" data-i18n-key="ціна_грн">Ціна, грн</label><input id="buyPrice" type="number" step="0.01" min="0"/>
+        <button id="addBuyBtn" data-i18n="|Додати купівлю|Add buy" data-i18n-key="addBuyBtn">Додати купівлю</button>
       </div>
 
       <div class="op">
-        <h3>Продаж Нетто(списати)</h3>
-        <label>К-сть</label><input id="sellQty" type="number" min="1" step="1" value="1"/>
-        <label>Ціна, грн</label><input id="sellPrice" type="number" step="0.01" min="0"/>
-        <button id="addSellBtn">Додати продаж</button>
+        <h3 data-i18n="|Продаж Нетто(списати)|Sale Net (write-off)" data-i18n-key="продаж_неттосписати">Продаж Нетто(списати)</h3>
+        <label data-i18n="|К-сть|Qty" data-i18n-key="к_сть_2">К-сть</label><input id="sellQty" type="number" min="1" step="1" value="1"/>
+        <label data-i18n="|Ціна, грн|Price, UAH" data-i18n-key="ціна_грн_2">Ціна, грн</label><input id="sellPrice" type="number" step="0.01" min="0"/>
+        <button id="addSellBtn" data-i18n="|Додати продаж|Add sale" data-i18n-key="addSellBtn">Додати продаж</button>
       </div>
 
       <div class="op">
-        <h3>Break-even & ROI</h3>
+        <h3 data-i18n="|Точка беззбитковості та ROI|Break-even & ROI" data-i18n-key="break_even_roi">Break-even & ROI</h3>
         <div id="breakeven"></div>
         <div class="row-inline mt6">
-          <input id="roiTarget" type="number" step="1" placeholder="ROI % (напр., 15)"/>
-          <button id="calcRoiBtn">Розрахувати</button>
+          <input id="roiTarget" type="number" step="1" placeholder="ROI % (напр., 15)" data-i18n-ph="ROI % (напр., 15)|ROI % (e.g., 15)"/ data-i18n-placeholder="roiTarget__ph">
+          <button id="calcRoiBtn" data-i18n="|Розрахувати|Calculate" data-i18n-key="calcRoiBtn">Розрахувати</button>
         </div>
         <div id="roiOut" class="note"></div>
       </div>
@@ -141,51 +142,51 @@
 
     <div class="grid two mt6">
       <div>
-        <h3>Глибина ринку (Top-5)</h3>
-        <table id="depth"><thead><tr><th>Тип</th><th>Ціна</th><th>К-сть</th><th>Кумулятив</th></tr></thead><tbody></tbody></table>
+        <h3 data-i18n-key="глибина_ринку_top_5">Глибина ринку (Top-5)</h3>
+        <table id="depth"><thead data-i18n="|Тип|Type" data-i18n-key="тип"><tr><th>Тип</th><th data-i18n="|Ціна|Price" data-i18n-key="ціна">Ціна</th><th data-i18n="|К-сть|Qty" data-i18n-key="к_сть_3">К-сть</th><th data-i18n="|Кумулятив|Cumulative" data-i18n-key="кумулятив">Кумулятив</th></tr></thead><tbody></tbody></table>
       </div>
       <div>
-        <h3>Графік (обрана позиція)</h3>
+        <h3 data-i18n="|Графік (обрана позиція)|Chart (selected position)" data-i18n-key="графік_обрана_позиція">Графік (обрана позиція)</h3>
         <canvas id="chart" width="540" height="160"></canvas>
       </div>
     </div>
   </section>
 
   <section class="card">
-    <h2>Динаміка портфелю</h2>
+    <h2 data-i18n="|Динаміка портфелю|Portfolio dynamics" data-i18n-key="динаміка_портфелю">Динаміка портфелю</h2>
     <canvas id="pnlChart"></canvas>
   </section>
 
   <section class="card">
   
-    <h2>Портфель</h2>
+    <h2 data-i18n="|Портфель|Portfolio" data-i18n-key="портфель">Портфель</h2>
   <div class="search-wrap">
     <input id="search" type="search"
-           placeholder="Пошук за назвою або тегами… (натисни /)" />
+           placeholder="Пошук за назвою або тегами… (натисни /)" / data-i18n-placeholder="search__ph">
   </div>
 
     <div class="table-wrap">	
       <table id="tbl">
 
-<thead>
+<thead data-i18n="|Назва|Name" data-i18n-key="назва_2">
   <tr>
     <th class="sortable" data-sort="name">Назва <span class="arrow"></span></th>
-    <th>Теги</th>
-    <th class="sortable" data-sort="qty">К-сть <span class="arrow"></span></th>
-    <th class="sortable" data-sort="avg">Сер. собівартість <span class="arrow"></span></th>
-    <th class="sortable" data-sort="invested">Нетто вкладено <span class="arrow"></span></th>
-    <th class="sortable" data-sort="market">Маркет ціна <span class="arrow"></span></th>
-    <th class="sortable" data-sort="unreal">Unrealized <span class="arrow"></span></th>
-    <th class="sortable" data-sort="roi">ROI % <span class="arrow"></span></th>
-    <th class="sortable" data-sort="vol">σ (vol) <span class="arrow"></span></th>
-    <th class="sortable" data-sort="sell1">1-й sell <span class="arrow"></span></th>
-    <th class="sortable" data-sort="buy1">1-й buy <span class="arrow"></span></th>
-    <th>Alert Buy ≤</th>
-    <th>Alert Sell (нетто) ≥</th>
-    <th class="sortable" data-sort="realAvg">Реаліз. сер. ціна <span class="arrow"></span></th>
-    <th class="sortable" data-sort="realQty">Реаліз. к-сть <span class="arrow"></span></th>
-    <th>Alert статус</th>
-    <th class="sortable" data-sort="last">Останнє <span class="arrow"></span></th>
+    <th data-i18n-key="теги">Теги</th>
+    <th class="sortable" data-sort="qty" data-i18n="|К-сть|Qty" data-i18n-key="к_сть_4">К-сть <span class="arrow"></span></th>
+    <th class="sortable" data-sort="avg" data-i18n-key="сер_собівартість">Сер. собівартість <span class="arrow"></span></th>
+    <th class="sortable" data-sort="invested" data-i18n-key="нетто_вкладено">Нетто вкладено <span class="arrow"></span></th>
+    <th class="sortable" data-sort="market" data-i18n-key="маркет_ціна">Маркет ціна <span class="arrow"></span></th>
+    <th class="sortable" data-sort="unreal" data-i18n="|Unrealized|Unrealized" data-i18n-key="unrealized">Unrealized <span class="arrow"></span></th>
+    <th class="sortable" data-sort="roi" data-i18n-key="roi">ROI % <span class="arrow"></span></th>
+    <th class="sortable" data-sort="vol" data-i18n-key="σ_vol">σ (vol) <span class="arrow"></span></th>
+    <th class="sortable" data-sort="sell1" data-i18n-key="1_и_sell">1-й sell <span class="arrow"></span></th>
+    <th class="sortable" data-sort="buy1" data-i18n-key="1_и_buy">1-й buy <span class="arrow"></span></th>
+    <th data-i18n-key="alert_buy">Alert Buy ≤</th>
+    <th data-i18n-key="alert_sell_нетто">Alert Sell (нетто) ≥</th>
+    <th class="sortable" data-sort="realAvg" data-i18n-key="реаліз_сер_ціна">Реаліз. сер. ціна <span class="arrow"></span></th>
+    <th class="sortable" data-sort="realQty" data-i18n-key="реаліз_к_сть">Реаліз. к-сть <span class="arrow"></span></th>
+    <th data-i18n-key="alert_статус">Alert статус</th>
+    <th class="sortable" data-sort="last" data-i18n-key="останнє">Останнє <span class="arrow"></span></th>
     <th></th>
   </tr>
 </thead>
@@ -197,7 +198,7 @@
   </section>
 
   <section class="card">
-    <h2>Діагностика</h2>
+    <h2 data-i18n="|Діагностика|Diagnostics" data-i18n-key="діагностика">Діагностика</h2>
     <div class="grid four">
       <div><div class="note">Auto-refresh (хв)</div><div id="d_alarm"></div></div>
       <div><div class="note">Alarm set at</div><div id="d_alarm_at"></div></div>
@@ -205,23 +206,23 @@
       <div><div class="note">Items/Errors/Time</div><div id="d_stats"></div></div>
     </div>
     <div class="row-inline mt6">
-      <button id="diagRefresh">Оновити діагностику</button>
-      <button id="diagBatch">Примусити batch</button>
-      <button id="diagTest">Тестове сповіщення</button>
+      <button id="diagRefresh" data-i18n-key="diagRefresh">Оновити діагностику</button>
+      <button id="diagBatch" data-i18n-key="diagBatch">Примусити batch</button>
+      <button id="diagTest" data-i18n-key="diagTest">Тестове сповіщення</button>
     </div>
     <div class="mt6">
-      <label>Журнал (ост. 200):</label>
+      <label data-i18n-key="журнал_ост_200">Журнал (ост. 200):</label>
       <textarea id="diagLog" style="width:100%;height:140px;"></textarea>
     </div>
   </section>
 
   <section class="card">
-    <h2>Історія операцій</h2>
+    <h2 data-i18n="|Історія операцій|Operations history" data-i18n-key="історія_операціи">Історія операцій</h2>
     <div class="table-wrap">
       <table id="hist">
-        <thead>
+        <thead data-i18n="|Дата|Date" data-i18n-key="дата_2">
           <tr>
-            <th>Дата</th><th>Тип</th><th>Назва</th><th>К-сть</th><th>Ціна</th><th>Avg @</th><th>Realized PnL</th><th></th>
+            <th>Дата</th><th data-i18n="|Тип|Type" data-i18n-key="тип_2">Тип</th><th data-i18n="|Назва|Name" data-i18n-key="назва_3">Назва</th><th data-i18n="|К-сть|Qty" data-i18n-key="к_сть_5">К-сть</th><th data-i18n="|Ціна|Price" data-i18n-key="ціна_2">Ціна</th><th data-i18n-key="avg">Avg @</th><th data-i18n-key="realized_pnl">Realized PnL</th><th></th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -232,18 +233,18 @@
 
   <!-- ==== Історія Steam (останні 100) ==== -->
   <section class="card">
-    <h2>Історія Steam (останні 100)</h2>
+    <h2 data-i18n="|Історія Steam (останні 100)|Steam history (last 100)" data-i18n-key="історія_steam_останні_100">Історія Steam (останні 100)</h2>
     <div class="row">
-      <button id="loadSteam100">Завантажити 100</button>
-      <button id="loadSteamMore">Ще +100</button>
-      <button id="updatePortfolioAuto">Оновити портфель</button>
+      <button id="loadSteam100" data-i18n-key="loadSteam100">Завантажити 100</button>
+      <button id="loadSteamMore" data-i18n-key="loadSteamMore">Ще +100</button>
+      <button id="updatePortfolioAuto" data-i18n-key="updatePortfolioAuto">Оновити портфель</button>
       <span id="steamStatus" class="muted"></span>
     </div>
     <div class="table-wrap">
       <table id="steamHist">
-        <thead>
+        <thead data-i18n="|Дата|Date" data-i18n-key="дата_3">
           <tr>
-            <th>Дата</th><th>Тип</th><th>Іконка</th><th>Назва</th><th>Ціна</th><th>Дія</th>
+            <th>Дата</th><th data-i18n="|Тип|Type" data-i18n-key="тип_3">Тип</th><th data-i18n="|Іконка|Icon" data-i18n-key="іконка">Іконка</th><th data-i18n="|Назва|Name" data-i18n-key="назва_4">Назва</th><th data-i18n="|Ціна|Price" data-i18n-key="ціна_3">Ціна</th><th data-i18n-key="дія">Дія</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -255,17 +256,17 @@
 
   <!-- ==== Повний інвентар Steam ==== -->
   <section class="card">
-    <h2>Інвентар Steam</h2>
+    <h2 data-i18n="|Інвентар Steam|Steam inventory" data-i18n-key="інвентар_steam">Інвентар Steam</h2>
     <div class="row">
-      <button id="loadInvBtn">Завантажити інвентар</button>
-      <input id="invSearch" placeholder="Фільтр за назвою..." style="margin-left:8px; flex:1">
+      <button id="loadInvBtn" data-i18n-key="loadInvBtn">Завантажити інвентар</button>
+      <input id="invSearch" placeholder="Фільтр за назвою..." style="margin-left:8px; flex:1" data-i18n-placeholder="invSearch__ph">
       <span id="invStatus" class="muted"></span>
     </div>
     <div class="table-wrap">
       <table id="invTbl">
-        <thead>
+        <thead data-i18n="|Іконка|Icon" data-i18n-key="іконка_2">
           <tr>
-            <th>Іконка</th><th>Назва</th><th>К-сть</th><th>Tradable</th><th>Дія</th>
+            <th>Іконка</th><th data-i18n="|Назва|Name" data-i18n-key="назва_5">Назва</th><th data-i18n="|К-сть|Qty" data-i18n-key="к_сть_6">К-сть</th><th data-i18n-key="tradable">Tradable</th><th data-i18n-key="дія_2">Дія</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -275,5 +276,6 @@
 
 
   <script src="app.js"></script>
+  <script src="i18n/i18n.js"></script>
 </body>
 </html>
