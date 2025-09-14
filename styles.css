@@ -113,6 +113,25 @@ select:disabled {
   background: rgba(255,255,255,0.04);
 }
 
+/* Згортання/розгортання карток */
+.card h2 {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* Стрілочка-індикатор */
+.card > h2::after {
+  content: "▸";
+  transition: transform .2s ease;
+  margin-left: auto;
+}
+.card:not(.collapsed) > h2::after { transform: rotate(90deg); }
+
+/* Ховаємо все, крім заголовка */
+.card.collapsed > *:not(h2) { display: none; }
 
 /* глобально */
 a { 

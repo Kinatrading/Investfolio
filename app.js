@@ -2095,3 +2095,38 @@ document.addEventListener("DOMContentLoaded", () => {
   // wait a tick for i18n to init
   setTimeout(update, 50);
 })();
+
+// --- Згортання/розгортання секцій .card ---
+// зберігаємо стан у localStorage, щоб пам'ятало між відкриттями
+(function setupCollapsibles() {
+  function keyFor(h2) {
+    return ('collapsed:' + (h2.dataset.i18nKey || h2.textContent.trim()))
+      .toLowerCase().replace(/\s+/g, '_');
+  }
+
+  function bind(h2) {
+    const card = h2.parentElement;
+    h2.setAttribute('role', 'button');
+    h2.tabIndex = 0;
+
+    const toggle = () => {
+      card.classList.toggle('collapsed');
+      localStorage.setItem(keyFor(h2), card.classList.contains('collapsed') ? '1' : '0');
+    };
+
+    h2.addEventListener('click', toggle);
+    h2.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+
+    // Відновити попередній стан
+    if (localStorage.getItem(keyFor(h2)) === '1') card.classList.add('collapsed');
+  }
+
+  // Якщо HTML уже на сторінці — ініціалізуємо одразу;
+  // і ще раз після завантаження i18n (на випадок, якщо щось додасться пізніше)
+  const init = () => document.querySelectorAll('.card > h2').forEach(bind);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else { init(); }
+})();
