@@ -1,4 +1,7 @@
 
+// i18n bootstrap
+try{(function(){const s=document.createElement('script');s.src=chrome.runtime.getURL('i18n/i18n.js');document.documentElement.appendChild(s);})();}catch(e){}
+
 // MV3 content script for Steam listing pages
 (function(){
   try{
