@@ -417,6 +417,11 @@ function renderAll(){
   tbody.innerHTML = "";
   let rows = state.items.filter(filter);
   rows = applySort(rows);
+  // Гранд тотал нетто по всьому портфелю (без фільтрів)
+  const grandTotalNet = (state.items||[]).reduce((s, x) => {
+    const mAll = calc(x);
+    return s + (mAll?.netCost || 0);
+  }, 0);
   let totalInvested=0, totalRealized=0, totalUnreal=0;
   for (const it of rows){
     const m = calc(it);
@@ -428,7 +433,7 @@ function renderAll(){
       <td>${it.tags||""}</td>
       <td>${m.heldQty}</td>
       <td>${fmt(m.avgCost)}</td>
-      <td>${fmt(m.netCost)}</td>
+      <td>${(function(){ const pct = grandTotalNet>0 ? (m.netCost/grandTotalNet*100) : 0; return `${fmt(m.netCost)} (${new Intl.NumberFormat(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}).format(pct)}%)`; })()}</td>
       <td>${m.marketPrice!=null? fmt(m.marketPrice):""}</td>
       <td>${m.unrealized!=null? fmt(m.unrealized):""}</td>
       <td>${m.roi!=null? fmt(m.roi):""}</td>
