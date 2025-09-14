@@ -1,3 +1,163 @@
+<<<<<<< Updated upstream
+=======
+async function buildFullPortfolioReportText(){
+
+  const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
+  const esc = s => String(s ?? "")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+
+  const SELL_ROI = 25;   // > 25% = продавати
+  const BUY_ROI  = -25;  // < -25% = докупити
+
+  let totalInvested = 0, totalUnreal = 0, totalQty = 0;
+
+  const sell = [], buy = [], mid = [];
+
+  for (const it of (state.items || [])) {
+    const m = calc(it) || {};
+    const invested = m.netCost ?? 0;
+    const unreal   = m.unrealized ?? 0;
+    const qty      = m.heldQty ?? it.amount ?? it.qty ?? 0;
+
+    if (!qty) continue;                 // ❗ пропускаємо 0
+
+    const roi = invested > 0 ? (unreal / invested * 100) : 0;
+
+    totalInvested += invested;
+    totalUnreal   += unreal;
+    totalQty      += (Number(qty) || 0);
+
+    const nm = esc(it?.name || "");
+    const line = `• <b>${nm}</b> — к-сть ${qty}, нетто ${fmt(invested)}, PnL ${fmt(unreal)}, ROI ${fmt(roi)}%`;
+
+    if (roi > SELL_ROI)      sell.push({ roi, line });
+    else if (roi < BUY_ROI)  buy.push({ roi, line });
+    else                     mid.push({ roi, line });
+  }
+
+  sell.sort((a,b)=> b.roi - a.roi);
+  buy .sort((a,b)=> a.roi - b.roi);
+  mid .sort((a,b)=> Math.abs(b.roi) - Math.abs(a.roi));
+
+  const pnl = totalUnreal;
+  const roiTot = totalInvested > 0 ? (pnl / totalInvested * 100) : 0;
+
+	const totals = portfolioTotals();
+	const bucket = await loadRealizedTotal();
+	const totalRealizedAll = totals.totalRealized + (bucket.pnl || 0);
+  // ==== DIFFERENCE SECTION ====
+  const prevSnap = await loadSnapshot();
+  const currSnap = buildSnapshot(state.items);
+  const { bought, sold } = diffSnapshots(prevSnap, currSnap);
+
+  
+  // === Aggregates for local diff report ===
+  let spentBuy = 0, soldGross = 0, soldNet = 0;
+  try {
+    // Use the same arrays that are rendered in the report
+    spentBuy  = (Array.isArray(bought) ? bought : []).reduce((s,x)=> s + Number(x.delta||0)*Number(x.price||0), 0);
+    soldGross = (Array.isArray(sold)   ? sold   : []).reduce((s,x)=> s + Number(x.delta||0)*Number(x.price||0), 0);
+    // Net realized: sum over sold of qty * (sellPrice - avgCostFromPrevSnap)
+    const snap = prevSnap || {};
+    soldNet = (Array.isArray(sold) ? sold : []).reduce((s,x)=>{
+      const prev = snap[x.name] || {};
+      const buyQty = Number(prev.buyQty || 0);
+      const buyValue = Number(prev.buyValue || 0);
+      const avgCost = buyQty > 0 ? (buyValue / buyQty) : 0;
+      const qty = Number(x.delta||0);
+      const price = Number(x.price||0);
+      return s + qty * (price - avgCost);
+    }, 0);
+  } catch(e){ console.warn("Aggregate calc failed", e); }
+const lines = [
+    "<b>📊 Steam Invest Ultra</b>",
+    `<b>Позицій:</b> ${state.items?.length || 0}`,
+    `<b>К-сть (шт, активних):</b> ${totalQty}`,
+    `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
+	`<b>Realized PnL:</b> ₴${fmt(totalRealizedAll)}`,
+    `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
+    ""
+  ];
+
+  if (bought.length || sold.length){
+    if (bought.length){
+      lines.push(`<b>🆕 Куплено:</b>`);
+      for (const r of bought){
+        lines.push(`• ${esc(r.name)} — +${r.delta} шт × ${fmt(r.price)}`);
+      }
+    }
+    if (sold.length){
+      if (bought.length) lines.push("");
+      lines.push(`<b>💸 Продано:</b>`);
+      for (const r of sold){
+        lines.push(`• ${esc(r.name)} — −${r.delta} шт × ${fmt(r.price)}`);
+      }
+    }
+    lines.push("");
+  } else {
+    lines.push(`<i>Змін від попереднього звіту не виявлено</i>`, "");
+  }
+
+  // ==== ROI BLOCKS ====
+  lines.push(
+    `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
+    sell.map(x=>("🔥 " + x.line)),
+    "",
+    `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
+    buy.map(x=>("🧲 " + x.line)),
+    "",
+    `<b>📎 Решта (від −${Math.abs(BUY_ROI)}% до +${SELL_ROI}%):</b> ${mid.length ? "" : "—"}`,
+    mid.map(x=>("📎 " + x.line)),
+  );
+  const flat = (arr)=>arr.flat ? arr.flat() : [].concat(...arr);
+// plain-text transform: strip tags & decode entities
+const stripTags = (s)=>String(s||"").replace(/<[^>]*>/g,"");
+const decode = (s)=>stripTags(s)
+  .replace(/&lt;/g,"<").replace(/&gt;/g,">")
+  .replace(/&amp;/g,"&").replace(/&quot;/g,'"')
+  .replace(/&#39;/g,"'");
+const text = flat(lines).filter(Boolean).map(decode).join("\n");
+return text;
+}
+
+document.getElementById("savePortfolioFullBtn")?.addEventListener("click", async ()=>{
+  try{
+    const fullReport = await buildFullPortfolioReportText(); // генератор звіту як для Telegram
+    const blob = new Blob([fullReport], {type: "text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `portfolio_report_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert("Не вдалося сформувати звіт: " + (e?.message || e));
+  }
+});
+function makeHistoryMarker(row){
+  const parts = [
+    row.actedOn || '',
+    row.name || '',
+    row.acted || '',
+    String(row.price||''),
+    row.classid || '',
+    row.instanceid || '',
+    row.rid || '',
+    row.purchaseid || '',
+    row.listingid || '',
+    row.contentHash || ''
+  ];
+  const s = parts.join('||');
+  let h = 0;
+  for (let i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h|=0; }
+  return `H${h}`;
+}
+// i18n bootstrap
+try{(function(){const s=document.createElement('script');s.src=chrome.runtime.getURL('i18n/i18n.js');document.documentElement.appendChild(s);})();}catch(e){}
+>>>>>>> Stashed changes
 /* global chrome */
 const $ = (s) => document.querySelector(s);
 const tbody = $("#tbl tbody");
@@ -6,7 +166,7 @@ const summaryEl = $("#summary");
 const itemSelect = $("#itemSelect");
 const mkt = $("#mkt");
 const links = $("#links");
-const chart = $("#chart");
+const chart = null;
 const hdrUnreal = $("#hdrUnreal");
 const rootEl = document.documentElement; // <html>, щоб тема працювала всюди
 
@@ -1012,6 +1172,23 @@ function diffSnapshots(prev, curr){
 }
 
 // ---- Telegram buttons ----
+
+document.getElementById("savePortfolioFullBtn")?.addEventListener("click", async ()=>{
+  try{
+    const text = await buildFullPortfolioReportText();
+    const blob = new Blob([text], {type:"text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `portfolio_full_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert("Не вдалося сформувати звіт: " + (e?.message||e));
+  }
+});
 document.getElementById("sendTgSummaryBtn")?.addEventListener("click", async ()=>{
   const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
   const esc = s => String(s ?? "")
@@ -1113,6 +1290,7 @@ const lines = [
   // ==== ROI BLOCKS ====
   lines.push(
     `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
+<<<<<<< Updated upstream
     ...sell.map(x=>x.line),
     "",
     `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
@@ -1120,6 +1298,15 @@ const lines = [
     "",
     `<b>📎 Решта (від −${Math.abs(BUY_ROI)}% до +${SELL_ROI}%):</b> ${mid.length ? "" : "—"}`,
     ...mid.map(x=>x.line),
+=======
+    sell.map(x=>("🔥 " + x.line)),
+    "",
+    `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
+    buy.map(x=>("🧲 " + x.line)),
+    "",
+    `<b>📎 Решта (від −${Math.abs(BUY_ROI)}% до +${SELL_ROI}%):</b> ${mid.length ? "" : "—"}`,
+    mid.map(x=>("📎 " + x.line)),
+>>>>>>> Stashed changes
   );
 
   // ==== Відправка по рядках ====
@@ -1234,11 +1421,19 @@ document.getElementById("sendTgShortBtn")?.addEventListener("click", async ()=>{
   // ==== ROI BLOCKS ====
   lines.push(
     `<b>🔥 Можна продавати (ROI &gt; ${SELL_ROI}%):</b> ${sell.length ? "" : "—"}`,
+<<<<<<< Updated upstream
     ...sell.map(x=>x.line),
     "",
     `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
     ...buy.map(x=>x.line),
     "",
+=======
+    sell.map(x=>("🔥 " + x.line)),
+    "",
+    `<b>🤔 Під питанням докупити (ROI &lt; ${Math.abs(BUY_ROI)}%):</b> ${buy.length ? "" : "—"}`,
+    buy.map(x=>("🧲 " + x.line)),
+    ""
+>>>>>>> Stashed changes
     );
 
   // ==== Відправка по рядках ====
@@ -1455,6 +1650,24 @@ document.addEventListener("DOMContentLoaded", ()=>{
       applySteamRow(idx);
     }
   });
+
+  
+  $("#forceHistoryMarker")?.addEventListener("click", async ()=>{
+    try{
+      if (!Array.isArray(steamHistory) || steamHistory.length === 0){
+        alert("Спершу завантаж історію Steam.");
+        return;
+      }
+      const newest = steamHistory[0];
+      const marker = typeof makeHistoryMarker === 'function' ? makeHistoryMarker(newest) : (newest.rid || newest.purchaseid || newest.listingid || Date.now().toString());
+      await chrome.storage?.local?.set?.({ [STORAGE_KEY_LAST_HIST_MARKER]: marker });
+      // Скидаємо локальні лічильники перегортання (на випадок якщо вони існують)
+      try{ window.steamStart = 0; }catch(e){}
+      $("#steamStatus").textContent = "Точку історії оновлено (як при першому запуску).";
+}catch(e){
+      $("#steamStatus").textContent = "Помилка: "+(e?.message||e);
+    }
+  });
 });
 // ===== end Steam History =====
 
@@ -1565,27 +1778,32 @@ async function fetchInventoryAll(appid=730, contextid=2){
   }
   const assets = data.assets||[];
   const descs  = data.descriptions||[];
-  const map = {};
-  for (const d of descs){
-    const key = `${String(d.classid)}_${String(d.instanceid)}`;
-    map[key] = d;
-  }
-  const acc = [];
-  for (const a of assets){
-    const key = `${String(a.classid)}_${String(a.instanceid)}`;
-    const d = map[key]||{};
-    const name = d.market_hash_name || d.market_name || d.name || "";
-    const icon = d.icon_url ? (String(d.icon_url).startsWith("http")? d.icon_url : `https://community.akamai.steamstatic.com/economy/image/${d.icon_url}`) : "";
-    const tradFlag = Number(d.tradable||0)===1;
-    const markFlag = Number(d.marketable||0)===1;
-    const tradable = tradFlag && markFlag;
-    acc.push({ name, icon, tradable, classid: String(a.classid), instanceid: String(a.instanceid), assetid: String(a.assetid), amount: Number(a.amount||1), effectiveTradable: tradable, rawTrad: tradFlag?1:0, rawMark: markFlag?1:0 });
-  }
-  const grouped = {};
+  
+const map = {};
+const classMap = {}; // fallback by classid
+for (const d of descs){
+  const key = `${String(d.classid)}_${String(d.instanceid)}`;
+  map[key] = d;
+  if (!classMap[String(d.classid)]) classMap[String(d.classid)] = d;
+}
+const acc = [];
+for (const a of assets){
+  const key = `${String(a.classid)}_${String(a.instanceid)}`;
+  let d = map[key] || classMap[String(a.classid)] || {};
+  const name = d.market_hash_name || d.market_name || d.name || "";
+  const iconSrc = d.icon_url || d.icon_url_large || "";
+  const icon = iconSrc ? (String(iconSrc).startsWith("http") ? iconSrc : `https://community.akamai.steamstatic.com/economy/image/${iconSrc}`) : "";
+  const tradFlag = Number(d.tradable||0)===1;
+  const markFlag = Number(d.marketable||0)===1;
+  const tradable = tradFlag && markFlag;
+  acc.push({ name, icon, tradable, classid: String(a.classid), instanceid: String(a.instanceid), amount: Number(a.amount||1), assetid: String(a.assetid||""), effectiveTradable: tradable, rawTrad: tradFlag?1:0, rawMark: markFlag?1:0 });
+}
+const grouped = {};
+
   for (const it of acc){
     const k = `${it.classid}_${it.instanceid}_${it.effectiveTradable?1:0}`;
     if (!grouped[k]) grouped[k] = { name: it.name, icon: it.icon, tradable: it.effectiveTradable, classid: it.classid, instanceid: it.instanceid, qty:0, assetids:[], rawTradYes:0, rawMarkYes:0 };
-    grouped[k].qty += it.amount || 1;
+    grouped[k].qty += Number(it.amount || 1);
     grouped[k].rawTradYes += it.rawTrad ? (it.amount||1) : 0;
     grouped[k].rawMarkYes += it.rawMark ? (it.amount||1) : 0;
     grouped[k].assetids.push(it.assetid);
@@ -1877,3 +2095,32 @@ async function autoUpdatePortfolioFromHistory(){
 document.addEventListener("DOMContentLoaded", () => {
   $("#updatePortfolioAuto")?.addEventListener("click", autoUpdatePortfolioFromHistory);
 });
+<<<<<<< Updated upstream
+=======
+
+
+// --- Language toggle ---
+(function(){
+  const btn = document.getElementById('langBtn');
+  if (!btn) return;
+  function update(){
+    try{
+      const cur = window.__extI18n ? window.__extI18n.getLang() : 'ukr';
+      // Show the *other* option on the button
+      btn.textContent = (cur === 'eng') ? 'UKR' : 'ENG';
+      btn.setAttribute('aria-label', cur === 'eng' ? 'Switch to Ukrainian' : 'Перемкнути на англійську');
+      btn.title = btn.getAttribute('aria-label');
+    }catch(e){}
+  }
+  btn.addEventListener('click', ()=>{
+    try{
+      const cur = window.__extI18n ? window.__extI18n.getLang() : 'ukr';
+      const next = (cur === 'eng') ? 'ukr' : 'eng';
+      if (window.__extI18n) window.__extI18n.setLang(next);
+    }catch(e){}
+    update();
+  });
+  // wait a tick for i18n to init
+  setTimeout(update, 50);
+})();
+>>>>>>> Stashed changes

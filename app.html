@@ -11,12 +11,23 @@
     <h1>Steam Invest Ultra (₴) <span id="hdrUnreal" class="badge big"></span></h1>
     <div class="spacer"></div>
     
+<<<<<<< Updated upstream
     <button id="scanAllBtn" title="Послідовно оновити всі API">Сканувати всі API</button>
     <button id="openAllBtn" title="Відкрити всі API у вкладках">Відкрити всі API</button>
     <button id="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram">В Telegram</button><button id="sendTgShortBtn" title="Надіслати СКОРОЧЕНИЙ звіт у Telegram">В TG (коротко)</button><button id="saveLocalSummaryBtn" title="Зберегти короткий звіт у файл">Зберегти локально</button>
     <label class="fileLabel">Імпорт JSON<input type="file" id="importFile" accept="application/json" hidden/></label>
     <button id="clearBtn" class="danger">Очистити</button>
     <button id="themeBtn" title="Тема">🌓</button>
+=======
+    <button id="scanAllBtn" title="Послідовно оновити всі API" data-i18n="|Сканувати всі API|Scan all APIs" data-i18n-key="scanAllBtn">Сканувати всі API</button>
+    <button id="openAllBtn" title="Відкрити всі API у вкладках" data-i18n="|Відкрити всі API|Open all APIs" data-i18n-key="openAllBtn">Відкрити всі API</button>
+    <button id="exportJsonBtn" data-i18n="|Експорт JSON|Export JSON" data-i18n-key="exportJsonBtn">Експорт JSON</button><button id="sendTgSummaryBtn" title="Надіслати підсумок портфеля в Telegram" data-i18n="|В Telegram|To Telegram" data-i18n-key="sendTgSummaryBtn">В Telegram</button><button id="sendTgShortBtn" title="Надіслати СКОРОЧЕНИЙ звіт у Telegram" data-i18n="|В TG (коротко)|To TG (short)" data-i18n-key="sendTgShortBtn">В TG (коротко)</button><button id="saveLocalSummaryBtn" data-i18n-key="saveLocalSummaryBtn" title="Зберегти короткий звіт у файл" data-i18n="|Зберегти локально|Save locally" data-i18n-key="saveLocalSummaryBtn">Зберегти локально</button>
+    <button id="savePortfolioFullBtn" data-i18n-key="savePortfolioFullBtn">Зберегти портфель</button>
+    <label class="fileLabel" data-i18n="|Імпорт JSON|Import JSON" data-i18n-key="імпорт_json">Імпорт JSON<input type="file" id="importFile" accept="application/json" hidden/></label>
+    <button id="clearBtn" class="danger" data-i18n="|Очистити|Clear" data-i18n-key="clearBtn">Очистити</button>
+    <button id="langBtn" title="Мова" data-i18n-key="langBtn">ENG</button>
+    <button id="themeBtn" title="Тема" data-i18n-key="themeBtn">🌓</button>
+>>>>>>> Stashed changes
   </header>
 
   <section class="card">
@@ -141,6 +152,7 @@
 
     <div class="grid two mt6">
       <div>
+<<<<<<< Updated upstream
         <h3>Глибина ринку (Top-5)</h3>
         <table id="depth"><thead><tr><th>Тип</th><th>Ціна</th><th>К-сть</th><th>Кумулятив</th></tr></thead><tbody></tbody></table>
       </div>
@@ -156,6 +168,17 @@
     <canvas id="pnlChart"></canvas>
   </section>
 
+=======
+        <h3 data-i18n-key="глибина_ринку_top_5">Глибина ринку (Top-5)</h3>
+        <table id="depth"><thead><tr><th>Тип</th><th data-i18n="|Ціна|Price" data-i18n-key="ціна">Ціна</th><th data-i18n="|К-сть|Qty" data-i18n-key="к_сть_3">К-сть</th><th data-i18n="|Кумулятив|Cumulative" data-i18n-key="кумулятив">Кумулятив</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div>
+        <h3 data-i18n="|Графік (обрана позиція)|Chart (selected position)" data-i18n-key="графік_обрана_позиція">Графік (обрана позиція)</h3></div>
+    </div>
+  </section>
+
+  
+>>>>>>> Stashed changes
   <section class="card">
   
     <h2>Портфель</h2>
@@ -234,9 +257,16 @@
   <section class="card">
     <h2>Історія Steam (останні 100)</h2>
     <div class="row">
+<<<<<<< Updated upstream
       <button id="loadSteam100">Завантажити 100</button>
       <button id="loadSteamMore">Ще +100</button>
       <button id="updatePortfolioAuto">Оновити портфель</button>
+=======
+      <button id="loadSteam100" data-i18n-key="loadSteam100">Завантажити 100</button>
+      <button id="loadSteamMore" data-i18n-key="loadSteamMore">Ще +100</button>
+      <button id="updatePortfolioAuto" data-i18n-key="updatePortfolioAuto">Оновити портфель</button>
+      <button id="forceHistoryMarker" data-i18n-key="forceHistoryMarker">Оновити точку</button>
+>>>>>>> Stashed changes
       <span id="steamStatus" class="muted"></span>
     </div>
     <div class="table-wrap">
