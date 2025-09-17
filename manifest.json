@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Steam Invest Ultra (UAH)",
   "description": "Per-item alerts, fixed auto-refresh, JSON import/export, header PnL, break-even, liquidity depth, volatility, tags, search, dark mode.",
-  "version": "5.2.3",
+  "version": "5.3.9",
   "action": {
     "default_title": "Open Steam Invest Ultra"
   },
@@ -39,8 +39,11 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "i18n/*.json",
+        "i18n/en.json",
+        "i18n/i18n.css",
         "i18n/i18n.js",
-        "i18n/i18n.css"
+        "i18n/uk.json"
       ],
       "matches": [
         "<all_urls>"

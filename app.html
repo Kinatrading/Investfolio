@@ -8,8 +8,30 @@
 </head>
 <body class="window" id="body">
   <header class="bar">
-    <h1 data-i18n-key="steam_invest_ultra">Steam Invest Ultra (₴) <span id="hdrUnreal" class="badge big"></span></h1>
-    <div class="spacer"></div>
+    <h1 data-i18n-key="steam_invest_ultra">Steam Invest Ultra (₴) <span id="hdrUnreal" class="badge big"></span>
+	</h1>
+	<span id="extVersion" class="muted" style="font-size:0.8em;"></span>
+	
+    <button id="supportBtn"
+        title="Support project"
+        data-i18n="|Підтримати проєкт|Support project"
+        data-i18n-key="supportBtn">
+  Support Project
+	</button>
+	<div class="spacer"></div>
+	<div class="thanks-wrap">
+	  <button id="thanksBtn"
+			  data-i18n="|Дякую|Thanks"
+			  data-i18n-key="thanksBtn">Дякую</button>
+
+	  <div id="thanksPopup" class="dropdown" aria-hidden="true">
+		<h3 data-i18n="|Подяки|Credits" data-i18n-key="credits_title">Подяки</h3>
+		<ul id="thanksList"></ul>
+	  </div>
+	</div>
+
+
+	<div class="spacer"></div>
     
     <button id="scanAllBtn" title="Послідовно оновити всі API" data-i18n="|Сканувати всі API|Scan all APIs" data-i18n-key="scanAllBtn">Сканувати всі API</button>
     <button id="openAllBtn" title="Відкрити всі API у вкладках" data-i18n="|Відкрити всі API|Open all APIs" data-i18n-key="openAllBtn">Відкрити всі API</button>
@@ -62,7 +84,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" style="display: none">
     <h2 data-i18n="|Додати предмет|Add item" data-i18n-key="додати_предмет">Додати предмет</h2><button id="sendTgCurrentBtn" class="right" title="Надіслати цей предмет у Telegram" data-i18n="|В Telegram|To Telegram" data-i18n-key="sendTgCurrentBtn">В Telegram</button>
     <div class="grid four">
       <div>
@@ -119,14 +141,14 @@
       <div class="op">
         <h3 data-i18n="|Купівля (додати)|Buy (add)" data-i18n-key="купівля_додати">Купівля (додати)</h3>
         <label data-i18n="|К-сть|Qty" data-i18n-key="к_сть">К-сть</label><input id="buyQty" type="number" min="1" step="1" value="1"/>
-        <label data-i18n="|Ціна, грн|Price, UAH" data-i18n-key="ціна_грн">Ціна, грн</label><input id="buyPrice" type="number" step="0.01" min="0"/>
+        <label data-i18n="|Ціна|Price" data-i18n-key="ціна">Ціна</label><input id="buyPrice" type="number" step="0.01" min="0"/>
         <button id="addBuyBtn" data-i18n="|Додати купівлю|Add buy" data-i18n-key="addBuyBtn">Додати купівлю</button>
       </div>
 
       <div class="op">
         <h3 data-i18n="|Продаж Нетто(списати)|Sale Net (write-off)" data-i18n-key="продаж_неттосписати">Продаж Нетто(списати)</h3>
         <label data-i18n="|К-сть|Qty" data-i18n-key="к_сть_2">К-сть</label><input id="sellQty" type="number" min="1" step="1" value="1"/>
-        <label data-i18n="|Ціна, грн|Price, UAH" data-i18n-key="ціна_грн_2">Ціна, грн</label><input id="sellPrice" type="number" step="0.01" min="0"/>
+        <label data-i18n="|Ціна|Price" data-i18n-key="ціна_2">Ціна</label><input id="sellPrice" type="number" step="0.01" min="0"/>
         <button id="addSellBtn" data-i18n="|Додати продаж|Add sale" data-i18n-key="addSellBtn">Додати продаж</button>
       </div>
 

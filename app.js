@@ -1,3 +1,5 @@
+const L = (ua,en)=> (window.__extI18n && __extI18n.t) ? __extI18n.t(ua,en) : ((document.documentElement.lang==='en' && en) ? en : ua);
+
 async function buildFullPortfolioReportText(){
 
   const fmt = n => (isFinite(n) ? Number(n).toFixed(2) : "0.00");
@@ -2100,6 +2102,66 @@ document.addEventListener("DOMContentLoaded", () => {
   // wait a tick for i18n to init
   setTimeout(update, 50);
 })();
+
+document.getElementById('supportBtn')?.addEventListener('click', () => {
+  chrome.tabs.create({ url: "https://steamcommunity.com/tradeoffer/new/?partner=122710641&token=E_XDXulK" });
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    const manifest = chrome.runtime.getManifest();
+    const ver = manifest.version;
+    const el = document.getElementById("extVersion");
+    if (el) el.textContent = "v" + ver;
+  } catch (e) {
+    console.warn("Cannot get manifest version", e);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const SUPPORTERS = [
+    { name: "Twilight", note: "тестування/testing" }
+  ];
+
+  // 1) Побудова списку
+  const list = document.getElementById('thanksList');
+  if (list){
+    list.innerHTML = '';
+    for (const s of SUPPORTERS){
+      const li = document.createElement('li');
+      li.textContent = s.note ? `${s.name} — ${s.note}` : s.name;
+      list.appendChild(li);
+    }
+  }
+
+  // 2) Ховер-логіка (з таймером, щоб не мигало)
+  const btn   = document.getElementById('thanksBtn');
+  const popup = document.getElementById('thanksPopup');
+  let hideT   = null;
+
+  function showPopup(){
+    clearTimeout(hideT);
+    popup?.setAttribute('aria-hidden','false');
+  }
+  function scheduleHide(){
+    clearTimeout(hideT);
+    hideT = setTimeout(()=> popup?.setAttribute('aria-hidden','true'), 180);
+  }
+
+  // настільні пристрої — показ на hover
+  btn?.addEventListener('mouseenter', showPopup);
+  btn?.addEventListener('mouseleave', scheduleHide);
+  popup?.addEventListener('mouseenter', showPopup);
+  popup?.addEventListener('mouseleave', scheduleHide);
+
+  // мобілки/клік — toggle
+  btn?.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const isHidden = popup?.getAttribute('aria-hidden') !== 'false';
+    if (isHidden) showPopup(); else popup?.setAttribute('aria-hidden','true');
+  });
+});
+
 
 // --- Згортання/розгортання секцій .card ---
 // зберігаємо стан у localStorage, щоб пам'ятало між відкриттями

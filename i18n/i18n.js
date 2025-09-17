@@ -68,6 +68,25 @@
 
   function getLang(){ return current; }
 
+
+  function t(key, fallback){
+    const src = String(key ?? "");
+    if (dict && dict[src]) return dict[src];
+    if (dict && dict.__source && dict.__source[src]) return dict.__source[src];
+    if ((current === 'eng') && (fallback!=null)) return String(fallback);
+    return src;
+  }
+  (function(){
+    try{
+      const _alert = window.alert;
+      const _confirm = window.confirm;
+      const _prompt = window.prompt;
+      window.alert = function(msg){ return _alert.call(window, t(msg)); };
+      window.confirm = function(msg){ return _confirm.call(window, t(msg)); };
+      window.prompt = function(msg, def){ return _prompt.call(window, t(msg), def); };
+    }catch(e){}
+  })();
+
   // expose the legacy-compatible API for app.js
   window.__extI18n = { getLang, setLang };
 

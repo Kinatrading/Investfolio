@@ -218,3 +218,19 @@ th.sortable .arrow { margin-left: .25rem; opacity: .7; }
   border-color: rgba(88,166,255,.8);
   box-shadow: 0 0 0 2px rgba(88,166,255,.2);
 }
+
+.thanks-wrap{ position:relative; display:inline-block; }
+
+#thanksPopup{
+  width:520px; max-height:60vh; overflow:auto; padding:14px;
+  border-radius:10px; background:rgba(16,18,22,.96); color:#fff;
+  box-shadow:0 12px 28px rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.08);
+  display:none; z-index:10000;
+}
+#thanksPopup[aria-hidden="false"]{ display:block; }
+
+#thanksPopup.dropdown{ position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); }
+#thanksPopup h3{ margin:0 0 8px; font-size:16px; opacity:.9; }
+#thanksPopup ul{ margin:0; padding-left:18px; }
+#thanksPopup li{ margin:4px 0; line-height:1.35; }
