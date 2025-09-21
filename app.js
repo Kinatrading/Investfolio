@@ -1635,11 +1635,7 @@ async function applySteamRow(idx){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  
-  $("#loadDotaBtn")?.addEventListener("click", ()=> fetchInventoryAll(570, 2).catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
-  $("#openCS2Inv")?.addEventListener("click", async (e)=>{ e.preventDefault(); const u = await buildInventoryPageURL(730); window.open(u, "_blank"); });
-  $("#openDotaInv")?.addEventListener("click", async (e)=>{ e.preventDefault(); const u = await buildInventoryPageURL(570); window.open(u, "_blank"); });
-$("#loadSteam100")?.addEventListener("click", async ()=>{
+  $("#loadSteam100")?.addEventListener("click", async ()=>{
     steamStart = 0;
     $("#steamStatus").textContent = "Завантаження";
     const chunk = await fetchSteamChunk(steamStart, 100);
@@ -1726,7 +1722,6 @@ function resolveLang(){
 }
 
 async function buildInventoryPageURL(appid){
-  // Try to get vanity path from /my/inventory/ redirect; fallback to numeric steamid
   try{
     const r = await fetch("https://steamcommunity.com/my/inventory/", { credentials:'include' });
     const url = r.url || "";
@@ -1827,19 +1822,24 @@ for (const a of assets){
   const tradable = tradFlag && markFlag;
   acc.push({ name, icon, tradable, classid: String(a.classid), instanceid: String(a.instanceid), amount: Number(a.amount||1), assetid: String(a.assetid||""), effectiveTradable: tradable, rawTrad: tradFlag?1:0, rawMark: markFlag?1:0 });
 }
-const grouped = {};
 
-  for (const it of acc){
-    const k = `${it.classid}_${it.instanceid}_${it.effectiveTradable?1:0}`;
-    if (!grouped[k]) grouped[k] = { name: it.name, icon: it.icon, tradable: it.effectiveTradable, classid: it.classid, instanceid: it.instanceid, qty:0, assetids:[], rawTradYes:0, rawMarkYes:0 };
-    grouped[k].qty += Number(it.amount || 1);
-    grouped[k].rawTradYes += it.rawTrad ? (it.amount||1) : 0;
-    grouped[k].rawMarkYes += it.rawMark ? (it.amount||1) : 0;
-    grouped[k].assetids.push(it.assetid);
-  }
-  fullInventory = Object.values(grouped).sort((a,b)=> a.name.localeCompare(b.name));
-  $("#invStatus").textContent = `Готово. Унікальних предметів: ${fullInventory.length}`;
-  renderInventory();
+const grouped = {};
+for (const it of acc){
+  // For Dota 2 (appid 570) we group by NAME only to ignore trade-lock tags etc.
+  const key = (String(appid) === "570")
+    ? `name::${it.name}`
+    : `${it.classid}_${it.instanceid}_${it.effectiveTradable?1:0}`;
+  if (!grouped[key]) grouped[key] = { name: it.name, icon: it.icon, classid: it.classid, instanceid: it.instanceid, qty:0, assetids:[], rawTradYes:0, rawMarkYes:0, tradable: it.effectiveTradable };
+  grouped[key].qty += Number(it.amount || 1);
+  grouped[key].rawTradYes += it.rawTrad ? (it.amount||1) : 0;
+  grouped[key].rawMarkYes += it.rawMark ? (it.amount||1) : 0;
+  grouped[key].tradable = grouped[key].tradable || it.effectiveTradable;
+  grouped[key].assetids.push(it.assetid);
+}
+fullInventory = Object.values(grouped).sort((a,b)=> a.name.localeCompare(b.name));
+$("#invStatus").textContent = `Готово. Унікальних предметів: ${fullInventory.length}`;
+renderInventory();
+renderInventory();
 }
 
 function renderInventory(){
@@ -1849,11 +1849,26 @@ function renderInventory(){
   for (const r of fullInventory){
     if (q && !r.name.toLowerCase().includes(q)) continue;
     const tr = document.createElement("tr");
+    // ROI lookup: if item exists in portfolio (by name), show ROI % (unrealized/netCost*100), otherwise empty
+    let roiText = "";
+    try{
+      const it = (state.items||[]).find(x => x.name === r.name);
+      if (it){
+        const m = calc(it) || {};
+        if (m && m.roi!=null && isFinite(m.roi)){
+          roiText = (m.roi>=0? "+" : "") + m.roi.toFixed(2);
+        }else{
+          roiText = "";
+        }
+      }
+    }catch(e){ roiText = ""; }
+
     tr.innerHTML = `
       <td>${r.icon?`<img src="${r.icon}" alt="" style="width:28px;height:28px;border-radius:4px">`:''}</td>
       <td>${r.name}</td>
       <td>${r.qty}</td>
       <td title="trad:${r.rawTradYes||0}/${r.qty} • market:${r.rawMarkYes||0}/${r.qty}">${r.tradable? "YES":"NO"}</td>
+      <td>${roiText}</td>
       <td><button class="btnAddInv" data-name="${r.name.replace(/"/g,'&quot;')}">+ в портфель</button></td>
     `;
     body.appendChild(tr);
@@ -1872,7 +1887,34 @@ async function addInvToPortfolio(name){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  $("#loadInvBtn")?.addEventListener("click", ()=> fetchInventoryAll().catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+  // Inventory controls
+  $("#loadInvBtn")?.addEventListener("click", ()=> 
+    fetchInventoryAll(730, 2).catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+
+  $("#loadDotaBtn")?.addEventListener("click", ()=> 
+    fetchInventoryAll(570, 2).catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+
+  $("#loadTF2Btn")?.addEventListener("click", ()=> 
+    fetchInventoryAll(440, 2).catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+
+  $("#loadRustBtn")?.addEventListener("click", ()=> 
+    fetchInventoryAll(252490, 2).catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+
+  // Open inventory pages in new tab
+  $("#openCS2Inv")?.addEventListener("click", async (e)=>{ 
+    e.preventDefault(); const u = await buildInventoryPageURL(730); window.open(u, "_blank"); 
+  });
+  $("#openDotaInv")?.addEventListener("click", async (e)=>{ 
+    e.preventDefault(); const u = await buildInventoryPageURL(570); window.open(u, "_blank"); 
+  });
+  $("#openTF2Inv")?.addEventListener("click", async (e)=>{ 
+    e.preventDefault(); const u = await buildInventoryPageURL(440); window.open(u, "_blank"); 
+  });
+  $("#openRustInv")?.addEventListener("click", async (e)=>{ 
+    e.preventDefault(); const u = await buildInventoryPageURL(252490); window.open(u, "_blank"); 
+  });
+
+  // Search + actions
   $("#invSearch")?.addEventListener("input", ()=> renderInventory());
   $("#invTbl")?.addEventListener("click", (e)=>{
     const t = e.target;
@@ -1881,6 +1923,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
   });
 });
+  $("#openRustInv")?.addEventListener("click", async (e)=>{ e.preventDefault(); const u = await buildInventoryPageURL(252490); window.open(u, "_blank"); });
+  $("#openDotaInv")?.addEventListener("click", async (e)=>{ e.preventDefault(); const u = await buildInventoryPageURL(570); window.open(u, "_blank"); });
+
+  $("#loadInvBtn")?.addEventListener("click", ()=> fetchInventoryAll().catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+  $("#invSearch")?.addEventListener("input", ()=> renderInventory());
+  $("#invTbl")?.addEventListener("click", (e)=>{
+    const t = e.target;
+    if (t.classList.contains("btnAddInv")){
+      addInvToPortfolio(t.dataset.name);
+    }
+  });
+
 // ===== end inventory =====
 
 

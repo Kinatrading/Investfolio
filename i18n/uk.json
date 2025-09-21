@@ -137,5 +137,9 @@
   "credits_title": "Подяки",
   "loadDotaBtn": "Інвентар Dota 2",
   "openCS2Page": "Відкрити сторінку CS2",
-  "openDotaPage": "Відкрити сторінку Dota 2"
+  "openDotaPage": "Відкрити сторінку Dota 2",
+  "loadTF2Btn": "Інвентар TF2",
+  "loadRustBtn": "Інвентар Rust",
+  "openTF2Page": "Відкрити сторінку TF2",
+  "openRustPage": "Відкрити сторінку Rust"
 }

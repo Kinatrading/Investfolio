@@ -149,5 +149,9 @@
   "saved": "Saved",
   "loadDotaBtn": "Dota 2 inventory",
   "openCS2Page": "Open CS2 page",
-  "openDotaPage": "Open Dota 2 page"
+  "openDotaPage": "Open Dota 2 page",
+  "loadTF2Btn": "TF2 inventory",
+  "loadRustBtn": "Rust inventory",
+  "openTF2Page": "Open TF2 page",
+  "openRustPage": "Open Rust page"
 }

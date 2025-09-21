@@ -194,7 +194,6 @@
     <th class="sortable" data-sort="invested" data-i18n-key="нетто_вкладено">Нетто вкладено <span class="arrow"></span></th>
     <th class="sortable" data-sort="market" data-i18n-key="маркет_ціна">Маркет ціна <span class="arrow"></span></th>
     <th class="sortable" data-sort="unreal" data-i18n="|Unrealized|Unrealized" data-i18n-key="unrealized">Unrealized <span class="arrow"></span></th>
-    <th class="sortable" data-sort="roi" data-i18n-key="roi">ROI % <span class="arrow"></span></th>
     <th class="sortable" data-sort="vol" data-i18n-key="σ_vol">σ (vol) <span class="arrow"></span></th>
     <th class="sortable" data-sort="sell1" data-i18n-key="1_и_sell">1-й sell <span class="arrow"></span></th>
     <th class="sortable" data-sort="buy1" data-i18n-key="1_и_buy">1-й buy <span class="arrow"></span></th>
@@ -276,20 +275,30 @@
   <section class="card">
     <h2 data-i18n="|Інвентар Steam|Steam inventory" data-i18n-key="інвентар_steam">Інвентар Steam</h2>
     <div class="row">
-      <button id="loadInvBtn" data-i18n-key="loadInvBtn">Завантажити інвентар</button>
-      <button id="loadDotaBtn" data-i18n-key="loadDotaBtn">Dota 2 inventory</button>
-      <a id="openCS2Inv" href="#" data-i18n-key="openCS2Page" style="margin-left:8px">Open CS2 page</a>
-      <a id="openDotaInv" href="#" data-i18n-key="openDotaPage" style="margin-left:8px">Open Dota 2 page</a>
+      <button id="loadInvBtn" data-i18n-key="loadInvBtn">Інвентар CS2</button>
+      <button id="loadDotaBtn" data-i18n-key="loadDotaBtn">Інвентар Dota 2</button>
+
+      <button id="loadTF2Btn" data-i18n-key="loadTF2Btn">Інвентар TF2</button>
+      <button id="loadRustBtn" data-i18n-key="loadRustBtn">Інвентар Rust</button>
+      <a id="openTF2Inv" href="#" data-i18n-key="openTF2Page" style="margin-left:8px">Відкрити сторінку TF2</a>
+      <a id="openRustInv" href="#" data-i18n-key="openRustPage" style="margin-left:8px">Відкрити сторінку Rust</a>
+	  <a id="openCS2Inv" href="#" data-i18n-key="openCS2Page" style="margin-left:8px">Відкрити сторінку CS2</a>
+      <a id="openDotaInv" href="#" data-i18n-key="openDotaPage" style="margin-left:8px">Відкрити сторінку Dota 2</a>
       <input id="invSearch" placeholder="Фільтр за назвою..." style="margin-left:8px; flex:1" data-i18n-placeholder="invSearch__ph">
       <span id="invStatus" class="muted"></span>
     </div>
     <div class="table-wrap">
       <table id="invTbl">
         <thead>
-          <tr>
-            <th>Іконка</th><th data-i18n="|Назва|Name" data-i18n-key="назва_5">Назва</th><th data-i18n="|К-сть|Qty" data-i18n-key="к_сть_6">К-сть</th><th data-i18n-key="tradable">Tradable</th><th data-i18n-key="дія_2">Дія</th>
-          </tr>
-        </thead>
+        <tr>
+          <th>Іконка</th>
+          <th data-i18n="|Назва|Name" data-i18n-key="назва_6">Назва</th>
+          <th data-i18n="|К-сть|Qty" data-i18n-key="к_сть_6">К-сть</th>
+          <th data-i18n-key="tradable">Tradable</th>
+          <th data-i18n-key="roi">ROI %</th>
+            <th data-i18n-key="дія_2">Дія</th>
+        </tr>
+    </thead>
         <tbody></tbody>
       </table>
     </div>
