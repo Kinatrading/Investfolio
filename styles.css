@@ -234,3 +234,8 @@ th.sortable .arrow { margin-left: .25rem; opacity: .7; }
 #thanksPopup h3{ margin:0 0 8px; font-size:16px; opacity:.9; }
 #thanksPopup ul{ margin:0; padding-left:18px; }
 #thanksPopup li{ margin:4px 0; line-height:1.35; }
+
+
+/* tiny icon before item name (CS2/Dota2) */
+.game-ico{ display:inline-block; width:1.25em; text-align:center; margin-right:4px; }
+

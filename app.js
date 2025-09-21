@@ -28,7 +28,11 @@ async function buildFullPortfolioReportText(){
     totalUnreal   += unreal;
     totalQty      += (Number(qty) || 0);
 
-    const nm = esc(it?.name || "");
+    const nm = (function(){ 
+	  const ico = gameEmoji(it.itemUrl); 
+	  return ico + esc(it?.name || ""); 
+	})();
+
     const line = `• <b>${nm}</b> — к-сть ${qty}, нетто ${fmt(invested)}, PnL ${fmt(unreal)}, ROI ${fmt(roi)}%`;
 
     if (roi > SELL_ROI)      sell.push({ roi, line });
@@ -167,7 +171,22 @@ const mkt = $("#mkt");
 const links = $("#links");
 const chart = null;
 const hdrUnreal = $("#hdrUnreal");
-const rootEl = document.documentElement; // <html>, щоб тема працювала всюди
+const rootEl = document.documentElement;
+
+// Add small game emoji near the item name based on Steam appid in itemUrl (730=CS2, 570=Dota2)
+function gameEmoji(url){
+  try {
+    const m = /\/market\/listings\/(\d+)\//.exec(String(url||""));
+    if (!m) return "";
+    const appid = m[1];
+    if (appid === "730") return `<span class="game-ico" title="CS2">🔫</span> `;
+    if (appid === "570") return `<span class="game-ico" title="Dota 2">🧙‍♂️</span> `;
+    return "";
+  } catch(e){ 
+    return ""; 
+  }
+}
+
 
 // ---- сортування (існуюча логіка з індикаторами) ----
 let sortState = { key: null, dir: 'desc' }; // 'asc' | 'desc'
@@ -431,7 +450,7 @@ function renderAll(){
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${it.itemUrl ? `<a href="${it.itemUrl}" target="_blank" rel="noopener noreferrer">${it.name}</a>` : it.name}</td>
+      <td>${(function(){ const ico = gameEmoji(it.itemUrl); const nm = it.itemUrl ? `<a href="${it.itemUrl}" target="_blank" rel="noopener noreferrer">${it.name}</a>` : it.name; return ico + nm; })()}</td>
       <td>${it.tags||""}</td>
       <td>${m.heldQty}</td>
       <td>${fmt(m.avgCost)}</td>
@@ -1616,7 +1635,11 @@ async function applySteamRow(idx){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  $("#loadSteam100")?.addEventListener("click", async ()=>{
+  
+  $("#loadDotaBtn")?.addEventListener("click", ()=> fetchInventoryAll(570, 2).catch(e=> $("#invStatus").textContent = "Помилка: "+e.message ));
+  $("#openCS2Inv")?.addEventListener("click", async (e)=>{ e.preventDefault(); const u = await buildInventoryPageURL(730); window.open(u, "_blank"); });
+  $("#openDotaInv")?.addEventListener("click", async (e)=>{ e.preventDefault(); const u = await buildInventoryPageURL(570); window.open(u, "_blank"); });
+$("#loadSteam100")?.addEventListener("click", async ()=>{
     steamStart = 0;
     $("#steamStatus").textContent = "Завантаження";
     const chunk = await fetchSteamChunk(steamStart, 100);
@@ -1700,6 +1723,22 @@ function resolveLang(){
   if (htmlLang.startsWith('cs')) return 'czech';
   if (htmlLang.startsWith('en')) return 'english';
   return 'english';
+}
+
+async function buildInventoryPageURL(appid){
+  // Try to get vanity path from /my/inventory/ redirect; fallback to numeric steamid
+  try{
+    const r = await fetch("https://steamcommunity.com/my/inventory/", { credentials:'include' });
+    const url = r.url || "";
+    const mvan = url.match(/\/id\/([^\/?#]+)/);
+    if (mvan) return `https://steamcommunity.com/id/${mvan[1]}/inventory#${appid}`;
+  }catch(e){}
+  try{
+    const steamid = await getOwnSteamID();
+    return `https://steamcommunity.com/profiles/${steamid}/inventory#${appid}`;
+  }catch(e){
+    return `https://steamcommunity.com/inventory`;
+  }
 }
 
 async function fetchInventoryPageLegacy(steamid, appid, contextid, start=""){
@@ -2120,7 +2159,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   const SUPPORTERS = [
-    { name: "Twilight", note: "тестування/testing" }
+    { name: "Tw1lighT", note: "тестування/testing" }
   ];
 
   // 1) Побудова списку

@@ -87,7 +87,6 @@
   "тип_2": "Type",
   "назва_3": "Name",
   "к_сть_5": "Qty",
-  "ціна_2": "Price",
   "avg": "Avg @",
   "realized_pnl": "Realized PnL",
   "історія_steam_останні_100": "Steam history (last 100)",
@@ -101,7 +100,7 @@
   "ціна_3": "Price",
   "дія": "Action",
   "інвентар_steam": "Steam inventory",
-  "loadInvBtn": "Load inventory",
+  "loadInvBtn": "CS2 inventory",
   "іконка_2": "Icon",
   "назва_5": "Name",
   "к_сть_6": "Qty",
@@ -136,9 +135,8 @@
     "к_сть": "Qty",
     "ціна": "Price",
     "alert_buy": "Alert Buy ≤",
-	"thanksBtn": "Thanks",
-
-	"credits_title": "Credits",
+    "thanksBtn": "Thanks",
+    "credits_title": "Credits",
     "alert_sell_нетто": "Alert Sell (net) ≥"
   },
   "alert_minus_30": "Alert at −30% (buy more)",
@@ -148,5 +146,8 @@
   "add_item": "Add item",
   "error": "Error:",
   "added_to_db": "Added to DB",
-  "saved": "Saved"
+  "saved": "Saved",
+  "loadDotaBtn": "Dota 2 inventory",
+  "openCS2Page": "Open CS2 page",
+  "openDotaPage": "Open Dota 2 page"
 }
