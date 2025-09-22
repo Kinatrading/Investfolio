@@ -1938,6 +1938,33 @@ document.addEventListener("DOMContentLoaded", ()=>{
 // ===== end inventory =====
 
 
+// === Notes persistence (autosave) ===
+(() => {
+  const notesField = document.getElementById("notesField");
+  const NOTES_KEY = "portfolioNotes";
+  if (!notesField) return;
+
+  // Load on init
+  try {
+    const saved = localStorage.getItem(NOTES_KEY);
+    if (saved !== null) notesField.value = saved;
+  } catch (e) {
+    // ignore localStorage issues
+  }
+
+  // Debounced autosave on input
+  let saveT = null;
+  const saveNotes = () => {
+    try { localStorage.setItem(NOTES_KEY, notesField.value); } catch (e) {}
+  };
+  notesField.addEventListener("input", () => {
+    if (saveT) clearTimeout(saveT);
+    saveT = setTimeout(saveNotes, 400);
+  });
+  // Extra safety on unload
+  window.addEventListener("beforeunload", saveNotes);
+})();
+
 // ===== Local save (short summary) =====
 document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async ()=>{
   try{
