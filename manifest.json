@@ -17,7 +17,6 @@
     "service_worker": "background.js"
   },
   "host_permissions": [
-    "<all_urls>",
     "https://api.telegram.org/*",
     "https://steamcommunity.com/*",
     "https://steamcommunity.com/market/*"
