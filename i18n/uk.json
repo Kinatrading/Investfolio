@@ -1,6 +1,6 @@
 {
   "overlay_no_portfolio": "Поки що нема у портфелі.",
-  "overlay_stats": "У тебе: {qty} шт · сер. собівартість ₴{avg}",
+  "overlay_stats": "У тебе: {qty} шт · сер. собівартість {avg}",
   "alert_sell": "Алерт продаж ≥",
   "qty__ph": "напр., 1",
   "price__ph": "напр., 2.50",

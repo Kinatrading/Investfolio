@@ -1,6 +1,6 @@
 {
   "overlay_no_portfolio": "Not in your portfolio yet.",
-  "overlay_stats": "You hold: {qty} pcs · avg. cost ₴{avg}",
+  "overlay_stats": "You hold: {qty} pcs · avg. cost {avg}",
   "alert_sell": "Alert Sell ≥",
   "qty__ph": "e.g., 1",
   "price__ph": "e.g., 2.50",

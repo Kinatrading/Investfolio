@@ -99,10 +99,10 @@ function maybeNotify(item, firstSell, firstBuy, settings){
   var listing = firstSell.price;
   var messages = [];
   if (item.alertBuyAtOrBelow!=null && listing!=null && listing <= item.alertBuyAtOrBelow){
-    messages.push("Можна купити — ціна листингу ₴"+listing.toFixed(2)+" (≤ цілі ₴"+item.alertBuyAtOrBelow+")");
+    messages.push("Можна купити — ціна листингу "+listing.toFixed(2)+" (≤ цілі "+item.alertBuyAtOrBelow+")");
   }
   if (item.alertSellAtOrAbove!=null && netBuyOrder!=null && netBuyOrder >= item.alertSellAtOrAbove){
-    messages.push("Можна продати — net buy-order ₴"+netBuyOrder.toFixed(2)+" (≥ цілі ₴"+item.alertSellAtOrAbove+")");
+    messages.push("Можна продати — net buy-order "+netBuyOrder.toFixed(2)+" (≥ цілі "+item.alertSellAtOrAbove+")");
   }
   if (messages.length){
     try{

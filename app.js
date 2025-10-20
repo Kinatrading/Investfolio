@@ -79,7 +79,7 @@ const lines = [
     `<b>Позицій:</b> ${state.items?.length || 0}`,
     `<b>К-сть (шт, активних):</b> ${totalQty}`,
     `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
-	`<b>Realized PnL:</b> ₴${fmt(totalRealizedAll)}`,
+	`<b>Realized PnL:</b> ${fmt(totalRealizedAll)}`,
     `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
     ""
   ];
@@ -486,11 +486,11 @@ function renderAll(){
     const totalInvested = totals.totalInvested;
     const totalUnreal   = totals.totalUnreal;
     const totalRealizedAll = totals.totalRealized + (bucket.pnl||0);
-    const line = `Позицій: ${rows.length} • Нетто вкладено: ₴${fmt(totalInvested)} • Realized PnL (вкл. архів): ₴${fmt(totalRealizedAll)}  • Unrealized PnL: ₴${fmt(totalUnreal)}`;
+    const line = `Позицій: ${rows.length} • Нетто вкладено: ${fmt(totalInvested)} • Realized PnL (вкл. архів): ${fmt(totalRealizedAll)}  • Unrealized PnL: ${fmt(totalUnreal)}`;
     summaryEl.textContent = line;
   })();
 
-  hdrUnreal.textContent = `Unrealized ₴${fmt(totalUnreal)}`;
+  hdrUnreal.textContent = `Unrealized ${fmt(totalUnreal)}`;
 
   // історія
   histBody.innerHTML = "";
@@ -613,9 +613,9 @@ function renderBreakeven(it){
   const avg = calc(it).avgCost;
   const listingForBE = avg/(1-fee);
   $("#breakeven").innerHTML = `
-    <div class="note">Avg: ₴${fmt(avg)}, Fee: ${(fee*100).toFixed(1)}%</div>
-    <div>Break-even listing: <b>₴${fmt(listingForBE)}</b></div>
-    <div>Break-even instant (buy-order net): <b>₴${fmt(avg)}</b></div>
+    <div class="note">Avg: ${fmt(avg)}, Fee: ${(fee*100).toFixed(1)}%</div>
+    <div>Break-even listing: <b>${fmt(listingForBE)}</b></div>
+    <div>Break-even instant (buy-order net): <b>${fmt(avg)}</b></div>
   `;
 }
 
@@ -815,7 +815,7 @@ $("#fetchBtn").addEventListener("click", async ()=>{
     const fee = (it.feePct!=null ? it.feePct : state.settings.feePct);
     const netSell = it.firstSellPrice!=null ? it.firstSellPrice*(1-fee) : null;
     const netBuy = it.firstBuyPrice!=null ? it.firstBuyPrice*(1-fee) : null;
-    mkt.textContent = `Sell₴: ${fmt(it.firstSellPrice)} / Buy₴: ${fmt(it.firstBuyPrice)}  | Нетто: sell ${fmt(netSell)} / buy ${fmt(netBuy)}`;
+    mkt.textContent = `Sell: ${fmt(it.firstSellPrice)} / Buy: ${fmt(it.firstBuyPrice)}  | Нетто: sell ${fmt(netSell)} / buy ${fmt(netBuy)}`;
     await save();
   }catch(e){
     console.error(e);
@@ -879,7 +879,7 @@ $("#calcRoiBtn").addEventListener("click", ()=>{
   const roi = parseFloat($("#roiTarget").value||"0")/100;
   const targetNet = m.avgCost * (1+roi);
   const listingRequired = targetNet/(1-fee);
-  $("#roiOut").textContent = `Для ROI ${Math.round(roi*100)}% лістинг ≈ ₴${fmt(listingRequired)} (нетто буде ₴${fmt(targetNet)})`;
+  $("#roiOut").textContent = `Для ROI ${Math.round(roi*100)}% лістинг ≈ ${fmt(listingRequired)} (нетто буде ${fmt(targetNet)})`;
 });
 
 // Хоткеї
@@ -982,7 +982,7 @@ function niceTicks(min, max, maxTicks = 6){
   for (let v = start; v <= end + 1e-9; v += step) ticks.push(v);
   return { ticks, start, end };
 }
-const fmtMoney = v => `₴${v.toFixed(2)}`;
+const fmtMoney = v => `${v.toFixed(2)}`;
 const fmtDate = t => new Date(t).toLocaleDateString([], { day:'2-digit', month:'short' });
 
 let __pnlArrCache = null;
@@ -1284,7 +1284,7 @@ const lines = [
     `<b>Позицій:</b> ${state.items?.length || 0}`,
     `<b>К-сть (шт, активних):</b> ${totalQty}`,
     `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
-	`<b>Realized PnL:</b> ₴${fmt(totalRealizedAll)}`,
+	`<b>Realized PnL:</b> ${fmt(totalRealizedAll)}`,
     `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
     ""
   ];
@@ -1405,7 +1405,7 @@ document.getElementById("sendTgShortBtn")?.addEventListener("click", async ()=>{
     `<b>Позицій:</b> ${state.items?.length || 0}`,
     `<b>К-сть (шт, активних):</b> ${totalQty}`,
     `<b>Інвестовано:</b> ${fmt(totalInvested)}`,
-	`<b>Realized PnL:</b> ₴${fmt(totalRealizedAll)}`,
+	`<b>Realized PnL:</b> ${fmt(totalRealizedAll)}`,
     `<b>PnL:</b> ${fmt(pnl)}  <b>ROI:</b> ${fmt(roiTot)}%`,
     ""
   ];
@@ -2049,14 +2049,14 @@ document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async 
           lines.push("");
           lines.push("🆕 Куплено з моменту минулого звіту:");
           for (const x of bought){
-            lines.push(`  + ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
+            lines.push(`  + ${x.name} ×${x.delta} за ${fmt(x.price)}`);
           }
         }
         if (sold.length){
           lines.push("");
           lines.push("💸 Продано з моменту минулого звіту:");
           for (const x of sold){
-            lines.push(`  − ${x.name} ×${x.delta} за ₴${fmt(x.price)}`);
+            lines.push(`  − ${x.name} ×${x.delta} за ${fmt(x.price)}`);
           }
         }
       } else {
@@ -2072,13 +2072,13 @@ document.getElementById("saveLocalSummaryBtn")?.addEventListener("click", async 
       soldNet = dReal; // tie net sales to realized PnL delta for the period
 lines.push("");
       lines.push("Δ Підсумки від минулого звіту:");
-lines.push(`  💳 Витрачено на купівлю: ₴${fmt(spentBuy)}`);
-lines.push(`  💵 Отримано з продаж (брутто): ₴${fmt(soldGross)}`);
-      lines.push(`  💸 Отримано з продаж (чистими): ₴${fmt(soldNet)}`);
-lines.push(`  💰 Зміна інвестованого (нетто): ₴${fmt(dInv)} (тепер ₴${fmt(currTotals.totalInvested)})`);
-lines.push(`  📉 ∆ Unrealized PnL: ₴${fmt(dUnr)} (тепер ₴${fmt(currTotals.totalUnreal)})`);
+lines.push(`  💳 Витрачено на купівлю: ${fmt(spentBuy)}`);
+lines.push(`  💵 Отримано з продаж (брутто): ${fmt(soldGross)}`);
+      lines.push(`  💸 Отримано з продаж (чистими): ${fmt(soldNet)}`);
+lines.push(`  💰 Зміна інвестованого (нетто): ${fmt(dInv)} (тепер ${fmt(currTotals.totalInvested)})`);
+lines.push(`  📉 ∆ Unrealized PnL: ${fmt(dUnr)} (тепер ${fmt(currTotals.totalUnreal)})`);
       lines.push(`  📦 ∆ К-сть активних: ${dQty >= 0 ? "+" + Math.trunc(dQty) : Math.trunc(dQty)} (тепер ${Math.trunc(currTotals.totalQty)})`);
-      lines.push(`  📈 ∆ Realized PnL: ₴${fmt(dReal)} (тепер ₴${fmt(currTotals.totalRealizedAll)})`);
+      lines.push(`  📈 ∆ Realized PnL: ${fmt(dReal)} (тепер ${fmt(currTotals.totalRealizedAll)})`);
     }
 
     const text = lines.join("\n");

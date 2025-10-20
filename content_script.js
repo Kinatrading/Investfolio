@@ -108,7 +108,7 @@
             const avgCost = heldQty > 0 ? (netCost / heldQty) : 0;
             if (statsEl){
               const fmt = (n)=> (isFinite(n) ? Number(n).toFixed(2) : '0.00');
-              const tpl = t('overlay_stats','You hold: {qty} pcs · avg. cost ₴{avg}');
+              const tpl = t('overlay_stats','You hold: {qty} pcs · avg. cost {avg}');
               statsEl.textContent = tpl.replace('{qty}', String(heldQty)).replace('{avg}', fmt(avgCost));
             }
           }catch(e){}
